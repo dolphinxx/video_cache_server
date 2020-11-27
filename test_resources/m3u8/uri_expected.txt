@@ -1,0 +1,13 @@
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:9
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-KEY:METHOD=AES-128,URI="https://test.com/res/SETpoKKqvfBB/encrypt.key",IV=0x1c0c31f5915c4a52a0c63984f875316e
+
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",LANGUAGE="eng",NAME="English",AUTOSELECT=YES, DEFAULT=YES,URI="http://127.0.0.1:8888/?url=https%3A%2F%2Ftest.com%2Fm3u8%2Feng%2Fprog_index.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",LANGUAGE="fre",NAME="Français",AUTOSELECT=YES, DEFAULT=NO,URI="http://127.0.0.1:8888/?url=https%3A%2F%2Ftest.com%2Fm3u8%2Ffre%2Fprog_index.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",LANGUAGE="sp",NAME="Espanol",AUTOSELECT=YES, DEFAULT=NO,URI="http://127.0.0.1:8888/?url=https%3A%2F%2Ftest.com%2Fm3u8%2Fsp%2Fprog_index.m3u8"
+
+#EXT-X-STREAM-INF:BANDWIDTH=86000,CODECS="mp4a.40.5"
+http://127.0.0.1:8888/?url=https%3A%2F%2Ftest.com%2Fm3u8%2Flow%2Fiframe.m3u8
+#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=86000,URI="http://127.0.0.1:8888/?url=https%3A%2F%2Ftest.com%2Fm3u8%2Flow%2Fiframe.m3u8"

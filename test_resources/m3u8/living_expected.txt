@@ -1,0 +1,16 @@
+#EXTM3U
+#EXT-X-TARGETDURATION:10
+#EXT-X-VERSION:4
+#EXT-X-MEDIA-SEQUENCE:1
+#EXTINF:10.0,
+https://test.com/m3u8/fileSequence1.ts
+#EXTINF:10.0,
+https://test.com/fileSequence2.ts
+#EXTINF:10.0,
+http://media.anywhere.com/fileSequence3.ts
+#EXTINF:10.0,
+http://media.anywhere.com/stream/fileSequence4.ts
+#EXTINF:10.0,
+https://media.anywhere.com/stream/fileSequence5.ts
+#EXTINF:10.0,
+https://media.anywhere.com/stream/fileSequence6.ts
