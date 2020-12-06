@@ -21,7 +21,23 @@ class _MyAppState extends State<MyApp> {
     data = [
       {
         'name': 'mp4',
-        'url': 'https://gss3.baidu.com/6LZ0ej3k1Qd3ote6lo7D0j9wehsv/tieba-smallvideo/3_4fc40e51b9b1feaf5bd9a02f935405e4.mp4',
+        'url': 'https://www.sample-videos.com/video123/mp4/240/big_buck_bunny_240p_30mb.mp4',
+      },
+      {
+        'name': 'mp4 - 2',
+        'url': 'http://vfx.mtime.cn/Video/2019/03/13/mp4/190313094901111138.mp4',
+      },
+      {
+        'name': 'flv',
+        'url': 'https://www.sample-videos.com/video123/flv/240/big_buck_bunny_240p_30mb.flv',
+      },
+      {
+        'name': 'mkv',
+        'url': 'https://www.sample-videos.com/video123/mkv/240/big_buck_bunny_240p_30mb.mkv',
+      },
+      {
+        'name': '3gp',
+        'url': 'https://www.sample-videos.com/video123/3gp/240/big_buck_bunny_240p_30mb.3gp',
       },
       {
         'name': 'M3U8',
