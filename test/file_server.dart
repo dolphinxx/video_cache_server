@@ -9,6 +9,11 @@ Future<HttpServer> serve(dynamic file) async {
     0,
   );
   server.listen((HttpRequest request) async {
+    print('${request.method.toUpperCase()} ${request.uri}');
+    print('Headers:');
+    request.headers.forEach((name, values) {
+      print('$name=${values.join(',')}');
+    });
     HttpResponse response = request.response;
     Stream<List<int>> stream;
     try {
