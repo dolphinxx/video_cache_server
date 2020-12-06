@@ -81,7 +81,7 @@ class CacheInfo {
       try {
         int $begin = begin;
         // int _written = 0;
-        for (CacheFragment fragment in fragments) {
+        for (CacheFragment fragment in List.of(fragments)..sort((a, b) => a.begin - b.begin)) {
           if ((end != null && fragment.begin >= end) || fragment.end <= $begin) {
             continue;
           }
