@@ -170,3 +170,20 @@ http.Request cloneRequest(http.Request request) {
   req.followRedirects = request.followRedirects;
   return req;
 }
+
+/// Append [queries] to [url]
+String appendQuery(String url, String queries) {
+  int pos = url.indexOf('#');
+  String anchor;
+  if(pos == -1) {
+    anchor = '';
+  } else {
+    anchor = url.substring(pos);
+    url = url.substring(0, pos);
+  }
+  pos = url.indexOf('?');
+  if(pos == -1) {
+    return '$url?$queries$anchor';
+  }
+  return '$url${(url.endsWith("&") || url.endsWith('?')) ? "" : "&"}$queries$anchor';
+}

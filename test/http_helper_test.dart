@@ -107,4 +107,30 @@ void main() {
       _test(value, expected);
     });
   });
+  group('appendQuery', () {
+    var _test = (url, queries, expected) {
+      expect(appendQuery(url, queries), expected);
+    };
+    test('+anchor +queries', () {
+      _test('https://www.example.com?a=1#test', 'b=2&c=3', 'https://www.example.com?a=1&b=2&c=3#test');
+    });
+    test('+anchor -? -queries', () {
+      _test('https://www.example.com#test', 'b=2&c=3', 'https://www.example.com?b=2&c=3#test');
+    });
+    test('+anchor +? -queries', () {
+      _test('https://www.example.com?#test', 'b=2&c=3', 'https://www.example.com?b=2&c=3#test');
+    });
+    test('-anchor +queries', () {
+      _test('https://www.example.com?a=1', 'b=2&c=3', 'https://www.example.com?a=1&b=2&c=3');
+    });
+    test('-anchor endsWith & +queries', () {
+      _test('https://www.example.com?a=1&', 'b=2&c=3', 'https://www.example.com?a=1&b=2&c=3');
+    });
+    test('-anchor -? -queries', () {
+      _test('https://www.example.com', 'b=2&c=3', 'https://www.example.com?b=2&c=3');
+    });
+    test('-anchor +? -queries', () {
+      _test('https://www.example.com?', 'b=2&c=3', 'https://www.example.com?b=2&c=3');
+    });
+  });
 }

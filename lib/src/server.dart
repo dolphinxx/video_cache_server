@@ -18,8 +18,9 @@ import 'package:path_provider/path_provider.dart';
 /// Return true to pass through the request
 typedef PassThrough = FutureOr<bool> Function(ProxyRequest serverRequest, CacheInfo cacheInfo);
 
-/// Return true if finished the response in this handler.
-typedef PostRemoteRequestHandler = FutureOr Function(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer videoCacheServer);
+/// Return true if the response is finished in this handler.
+/// [owner] is the `cacheKey` this uri's cache [belongTo] or owned
+typedef PostRemoteRequestHandler = FutureOr Function(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer videoCacheServer, String owner);
 typedef BadCertificateCallback = bool Function(X509Certificate cert, String host, int port);
 
 /// This plugin starts a local [HttpServer], handles requests with particular urls:
@@ -84,10 +85,6 @@ class VideoCacheServer {
 
   Map<String, CacheInfo> get caches => /*UnmodifiableMapView(*/ _caches /*)*/;
 
-  /// A map holding the relationship between index url and playlist urls.
-  /// The key of the map is the url of playlist and the value of the map is the url of the index m3u8.
-  final Map<String, String> playlistMap = Map();
-
   /// Queries if any data associated with [url] is cached.
   ///
   /// Returns true if any data from or belong to the [url] is cached, otherwise returns false.
@@ -95,8 +92,7 @@ class VideoCacheServer {
     if (caches.containsKey(url)) {
       return true;
     }
-    return playlistMap.containsValue(url);
-    // return _caches.values.any((element) => element.belongTo == url);
+    return _caches.values.any((element) => element.belongTo == url);
   }
 
   int cacheFileIndex = 0;
@@ -177,7 +173,6 @@ class VideoCacheServer {
   /// Clears the held cache info and the cache files.
   Future<void> clear() async {
     _caches.clear();
-    playlistMap.clear();
     cacheFileIndex = 0;
     Directory cacheDir = Directory(_cacheDir);
     if (cacheDir.existsSync()) {
@@ -240,15 +235,7 @@ class VideoCacheServer {
 
   /// Gets a proxy url for [raw] which will be handled by the cache server.
   String getProxyUrl(String raw) {
-    return 'http${securityContext == null ? "" : "s"}://${address.host}:$port/?url=${Uri.encodeComponent(raw)}';
-  }
-
-  String _getBelongTo(String url, {bool recursive: false}) {
-    String belongTo = playlistMap[url];
-    if (belongTo != null) {
-      return _getBelongTo(belongTo, recursive: true);
-    }
-    return recursive == true ? url : null;
+    return 'http${securityContext == null ? "" : "s"}://${address.host}:$port/?__url__=${Uri.encodeComponent(raw)}';
   }
 
   /// Pass through the request for fetching mp4 metadata, this is usually happened when the player detected that the metadata is at the end of the mp4 file.
@@ -258,7 +245,7 @@ class VideoCacheServer {
         requestRange.specified &&
         (requestRange.end != null || cacheInfo.total != null) &&
         requestRange.begin != null &&
-        ((requestRange.end ?? cacheInfo.total) - requestRange.begin < 1024)) {
+        ((requestRange.end ?? cacheInfo.total) - requestRange.begin < 1024 && !cacheInfo.cached(requestRange))) {
       print('request passed through');
       return true;
     }
@@ -266,7 +253,7 @@ class VideoCacheServer {
   }
 
   /// Intercept and proxy m3u8 content.
-  static Future<bool> handleM3u8(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer server) async {
+  static Future<bool> handleM3u8(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer server, String owner) async {
     if (isM3u8(remoteResponse.headers['content-type']?.toLowerCase(), uri)) {
       // For a m3u8 request, download and change the URIs in it to proxied version
       String m3u8;
@@ -276,9 +263,8 @@ class VideoCacheServer {
       } else {
         m3u8 = await remoteResponse.stream.bytesToString();
       }
-      M3u8 _m3u8 = proxyM3u8Content(m3u8, server.getProxyUrl, remoteResponse.requestUri);
-      String url = uri.toString();
-      _m3u8.playlists.forEach((playlist) => server.playlistMap[playlist] = url);
+      String ownerQuery = owner == null ? '' : '&__owner__=$owner';
+      M3u8 _m3u8 = proxyM3u8Content(m3u8, (url) => '${server.getProxyUrl(url)}$ownerQuery', remoteResponse.requestUri);
 
       // print('-- M3U8:\n${_m3u8.proxied}');
       List<int> bytes = utf8.encode(_m3u8.proxied);
@@ -296,8 +282,33 @@ class VideoCacheServer {
 
   /// The actual codes of doing proxy and caching work.
   Future<void> _proxyAndCache(ProxyRequest serverRequest, HttpResponse response) async {
-    String realUrl = Uri.decodeComponent(serverRequest.requestedUri.queryParameters['url']);
-    CacheInfo cacheInfo = caches[realUrl];
+    String realUrl;
+    String cacheKey;
+    String owner;
+    List<String> extraParams = List();
+    serverRequest.requestedUri.queryParameters.forEach((key, value) {
+      if(key == '__url__') {
+        realUrl = value;
+        return;
+      }
+      if(key == '__key__') {
+        cacheKey = key;
+        return;
+      }
+      if(key == '__owner__') {
+        owner = value;
+        return;
+      }
+      extraParams.add('$key=${Uri.encodeComponent(value)}');
+    });
+    if(cacheKey == null) {
+      cacheKey = realUrl;
+    }
+    if(extraParams.isNotEmpty) {// ie: m3u8 encrypt queries
+      realUrl = appendQuery(realUrl, extraParams.join('&'));
+    }
+
+    CacheInfo cacheInfo = _caches[cacheKey];
     if (passThrough != null && await passThrough(serverRequest, cacheInfo)) {
       await _passThrough(realUrl, serverRequest, response);
       return;
@@ -360,8 +371,8 @@ class VideoCacheServer {
     }
 
     if (cacheInfo == null) {
-      cacheInfo = CacheInfo(url: realUrl, lazy: lazy, belongTo: _getBelongTo(realUrl))..current = 0;
-      _caches[realUrl] = cacheInfo;
+      cacheInfo = CacheInfo(url: realUrl, lazy: lazy, belongTo: owner)..current = 0;
+      _caches[cacheKey] = cacheInfo;
     }
     IOStreamedResponse clientResponse;
     try {
@@ -413,9 +424,9 @@ class VideoCacheServer {
       response.statusCode = clientResponse.statusCode;
       response.contentLength = clientResponse.contentLength ?? -1;
 
-      if (postRemoteRequestHandler != null && await postRemoteRequestHandler(realUri, clientResponse, response, this)) {
+      if (postRemoteRequestHandler != null && await postRemoteRequestHandler(realUri, clientResponse, response, this, owner??cacheKey)) {
         // don't hold cache info
-        _caches.remove(realUrl);
+        _caches.remove(cacheKey);
         return;
       }
 

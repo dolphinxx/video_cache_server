@@ -40,7 +40,11 @@ void main() {
       String url = 'http://127.0.0.1:${server.port}';
       String proxyUrl = _server.getProxyUrl(url);
       http.Request request = http.Request('GET', Uri.parse(proxyUrl));
-      // request.headers['Connection']='Keep-Alive';
+      request.headers['Connection']='close';
+      request.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1';
+      request.headers['Accept'] = '*/*';
+      request.headers['Icy-MetaData'] = '1';
+
       http.StreamedResponse response = await http.Client().send(request);
       int received = 0;
       String checksum = await calcChecksum(response.stream.where((event) {
