@@ -234,8 +234,14 @@ class VideoCacheServer {
   }
 
   /// Gets a proxy url for [raw] which will be handled by the cache server.
-  String getProxyUrl(String raw) {
-    return 'http${securityContext == null ? "" : "s"}://${address.host}:$port/?__url__=${Uri.encodeComponent(raw)}';
+  ///
+  /// [extraQueries] will be appended to the generated url, note that query key starts and ends with `__` is preserved to carry metadata and will not be appended to the actual video url.
+  String getProxyUrl(String raw, [Map<String, String> extraQueries]) {
+    String _extraQueries;
+    if(extraQueries?.isNotEmpty == true) {
+      _extraQueries = '&' + extraQueries.keys.map((key) => '$key=${Uri.encodeComponent(extraQueries[key])}').join('&');
+    }
+    return 'http${securityContext == null ? "" : "s"}://${address.host}:$port/?__url__=${Uri.encodeComponent(raw)}${_extraQueries??""}';
   }
 
   /// Pass through the request for fetching mp4 metadata, this is usually happened when the player detected that the metadata is at the end of the mp4 file.
@@ -263,8 +269,8 @@ class VideoCacheServer {
       } else {
         m3u8 = await remoteResponse.stream.bytesToString();
       }
-      String ownerQuery = owner == null ? '' : '&__owner__=$owner';
-      M3u8 _m3u8 = proxyM3u8Content(m3u8, (url) => '${server.getProxyUrl(url)}$ownerQuery', remoteResponse.requestUri);
+      Map<String, String> ownerQuery = owner == null ? null : {'__owner__': owner};
+      M3u8 _m3u8 = proxyM3u8Content(m3u8, (url) => server.getProxyUrl(url, ownerQuery), remoteResponse.requestUri);
 
       // print('-- M3U8:\n${_m3u8.proxied}');
       List<int> bytes = utf8.encode(_m3u8.proxied);
@@ -297,6 +303,9 @@ class VideoCacheServer {
       }
       if(key == '__owner__') {
         owner = value;
+        return;
+      }
+      if(key.startsWith('__') && key.endsWith('__')) {
         return;
       }
       extraParams.add('$key=${Uri.encodeComponent(value)}');
