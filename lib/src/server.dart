@@ -174,13 +174,15 @@ class VideoCacheServer {
   Future<void> clear() async {
     _caches.clear();
     cacheFileIndex = 0;
-    Directory cacheDir = Directory(_cacheDir);
-    if (cacheDir.existsSync()) {
-      for (FileSystemEntity file in cacheDir.listSync()) {
-        try {
-          file.deleteSync(recursive: true);
-        } catch (e) {
-          print(e);
+    if(_cacheDir != null) {
+      Directory cacheDir = Directory(_cacheDir);
+      if (cacheDir.existsSync()) {
+        for (FileSystemEntity file in cacheDir.listSync()) {
+          try {
+            file.deleteSync(recursive: true);
+          } catch (e) {
+            print(e);
+          }
         }
       }
     }
