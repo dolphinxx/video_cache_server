@@ -3,11 +3,12 @@
 
 import 'dart:io';
 import 'dart:async';
-import 'dart:math' as Math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/foundation.dart';
+import 'package:pedantic/pedantic.dart';
 import './io_streamed_response.dart';
 import './io_client.dart';
 
@@ -27,7 +28,7 @@ class ScheduledTask {
 class CacheInfo {
   final bool lazy;
   final String url;
-  final List<CacheFragment> fragments = List();
+  final List<CacheFragment> fragments = [];
 
   /// The index url this cache is belong to. For a `.ts` file cache, this is the url of the `m3u8` file containing it.
   final String belongTo;
@@ -51,7 +52,7 @@ class CacheInfo {
 
   bool cached(RequestRange requestRange) {
     if (requestRange.begin == null || requestRange.end == null) {
-      return this.finished;
+      return finished;
     }
     int begin = requestRange.begin;
     int end = requestRange.end + 1;
@@ -73,7 +74,7 @@ class CacheInfo {
   }
 
   /// Creates a stream to serve data from [begin] to [end], data is read from cache.
-  Stream<List<int>> streamFromCache({int begin: 0, int end}) {
+  Stream<List<int>> streamFromCache({int begin = 0, int end}) {
     StreamController<List<int>> controller;
     StreamSubscription $subscription;
     controller = StreamController(onListen: () async {
@@ -87,7 +88,7 @@ class CacheInfo {
           }
           Completer subscriptionCompleter = Completer();
           int _relativeBegin = $begin - fragment.begin;
-          int _relativeEnd = end == null ? fragment.received : Math.min(end - fragment.begin, fragment.received);
+          int _relativeEnd = end == null ? fragment.received : math.min(end - fragment.begin, fragment.received);
           $subscription = fragment.file.openRead(_relativeBegin, _relativeEnd).listen(
             (event) {
               try {
@@ -132,7 +133,7 @@ class CacheInfo {
           controller.addError(e, s);
         }
       }
-      controller.close();
+      unawaited(controller.close());
     }, onPause: () {
       // print('Stream[$begin-$end] - onPause');
       $subscription?.pause();
@@ -141,16 +142,16 @@ class CacheInfo {
       $subscription?.resume();
     }, onCancel: () async {
       // print('Stream[$begin-$end] - onCancel');
-      controller.close();
+      unawaited(controller.close());
     });
     return controller.stream;
   }
 
   /// Synchronous the [_stream] entry
   Future<Stream<List<int>>> stream({
-    int begin: 0,
+    int begin = 0,
     int end,
-    File createFragmentFile(),
+    File Function() createFragmentFile,
     IOStreamedResponse clientResponse,
     IOClient client,
     http.Request clientRequest,
@@ -173,9 +174,9 @@ class CacheInfo {
 
   /// Creates a stream to serve the data from [begin] to [end], data may be from cache or remote.
   Stream<List<int>> _stream({
-    int begin: 0,
+    int begin = 0,
     int end,
-    File createFragmentFile(),
+    File Function() createFragmentFile,
     IOStreamedResponse clientResponse,
     IOClient client,
     http.Request clientRequest,
@@ -188,7 +189,7 @@ class CacheInfo {
     controller = _controller = StreamController<List<int>>(onListen: () async {
       // print(''Stream[$begin-$end] - onListen');
       if (!identical(entrantIdentity, _entrantIdentity)) {
-        controller.close();
+        unawaited(controller.close());
         return;
       }
       fragments.sort((a, b) => a.begin - b.begin);
@@ -209,7 +210,7 @@ class CacheInfo {
           controller.addError(e, s);
         }
       }
-      controller.close();
+      unawaited(controller.close());
     }, onPause: () {
       // print('Stream[$begin-$end] - onPause');
       if (lazy != false) {
@@ -222,7 +223,7 @@ class CacheInfo {
       }
     }, onCancel: () async {
       // print('Stream[$begin-$end] - onCancel');
-      controller.close();
+      unawaited(controller.close());
     });
     return controller.stream;
   }
@@ -232,7 +233,7 @@ class CacheInfo {
     int begin,
     int end,
     IOStreamedResponse previousResponse,
-    File createFragmentFile(),
+    File Function() createFragmentFile,
     IOClient client,
     http.Request clientRequest,
     StreamController<List<int>> controller,
@@ -243,7 +244,7 @@ class CacheInfo {
       // fetch from remote
       CacheFragment nextFragment = fragments.firstWhere((element) => element.begin > begin, orElse: () => null);
 
-      int _end = end == null ? nextFragment?.begin : (nextFragment?.begin != null ? Math.min(nextFragment.begin, end) : end);
+      int _end = end == null ? nextFragment?.begin : (nextFragment?.begin != null ? math.min(nextFragment.begin, end) : end);
 
       // print('Reading from remote - [$begin-$_end, url:$url]');
       File cacheFile = createFragmentFile();
@@ -253,7 +254,7 @@ class CacheInfo {
         ..begin = begin
         ..end = begin
         ..expected = _end != null ? _end - begin : -1;
-      this.fragments.add(fragment);
+      fragments.add(fragment);
       IOSink sink = cacheFile.openWrite(mode: FileMode.write);
       try {
         http.StreamedResponse _clientResponse;
@@ -306,7 +307,7 @@ class CacheInfo {
               }
               controller.add(element);
               sink.add(element);
-              this.current += element.length;
+              current += element.length;
               fragment.end += element.length;
             } catch (e, s) {
               if (!_subscriptionCompleter.isCompleted) {
@@ -345,7 +346,7 @@ class CacheInfo {
       } finally {
         try {
           await sink.close();
-        } catch (ignore) {}
+        } catch (_) {}
         if (fragment.received == 0) {
           fragments.remove(fragment);
           if (fragment.file.existsSync()) {
@@ -355,7 +356,7 @@ class CacheInfo {
       }
     } else {
       // read from cache file
-      int __end = end == null ? fragment.end : Math.min(end, fragment.end);
+      int __end = end == null ? fragment.end : math.min(end, fragment.end);
       // print('Reading from cache - [$begin-$__end, url:$url]');
       Stream stream = fragment.file.openRead(begin - fragment.begin, __end - fragment.begin);
 
@@ -481,9 +482,9 @@ class CacheFragment {
   CacheFragment();
 
   CacheFragment.fromMap(Map map) {
-    this.file = map['file'] != null ? File(map['file']) : null;
-    this.begin = map['begin'];
-    this.end = map['end'];
-    this.expected = map['expected'];
+    file = map['file'] != null ? File(map['file']) : null;
+    begin = map['begin'];
+    end = map['end'];
+    expected = map['expected'];
   }
 }

@@ -16,15 +16,15 @@ class ProxyRequest {
   final HttpRequest httpRequest;
 
   ProxyRequest.fromHttpRequest(HttpRequest httpRequest) : httpRequest = httpRequest {
-    Map<String, List<String>> headers = Map();
+    Map<String, List<String>> headers = {};
     httpRequest.headers.forEach((k, v) {
       headers[k] = v;
     });
-    this.method = httpRequest.method;
-    this.requestedUri = httpRequest.requestedUri;
-    this.protocolVersion = httpRequest.protocolVersion;
-    this._headers = Headers.from(headers);
-    this._body = httpRequest;
+    method = httpRequest.method;
+    requestedUri = httpRequest.requestedUri;
+    protocolVersion = httpRequest.protocolVersion;
+    _headers = Headers.from(headers);
+    _body = httpRequest;
   }
 
   Map<String, String> get headers => _headers.singleValues;
@@ -35,7 +35,7 @@ class ProxyRequest {
 /// Unmodifiable, key-case-insensitive header map.
 class Headers {
   Map<String, String> _singleValues;
-  Map<String, List<String>> _data = Map();
+  final Map<String, List<String>> _data = {};
 
   Headers.from(Map<String, List<String>> values) {
     if (values != null && values.isNotEmpty) {
@@ -80,12 +80,12 @@ class RequestRange {
     }
     RegExpMatch matcher = RegExp('bytes=(\\d+)?-(\\d+)?').firstMatch(raw);
     if (matcher != null) {
-      this.specified = true;
-      this.begin = matcher.group(1) == null ? null : int.parse(matcher.group(1));
-      this.end = matcher.group(2) == null ? null : int.parse(matcher.group(2));
-      if (this.begin == null) {
-        this.suffixLength = this.end;
-        this.end = null;
+      specified = true;
+      begin = matcher.group(1) == null ? null : int.parse(matcher.group(1));
+      end = matcher.group(2) == null ? null : int.parse(matcher.group(2));
+      if (begin == null) {
+        suffixLength = end;
+        end = null;
       }
     }
   }
@@ -96,13 +96,13 @@ class RequestRange {
     if (!specified) {
       throw StateError('This RequestRange instance is not a specified one, it cannot be converted to range one.');
     }
-    this.end = total - 1;
-    this.begin = total - suffixLength;
-    this.suffixLength = null;
+    end = total - 1;
+    begin = total - suffixLength;
+    suffixLength = null;
   }
 
   bool isSameRange(int begin, int end) {
-    if (!this.specified) {
+    if (!specified) {
       return begin == 0 && end == null;
     }
     return (this.begin == begin || (this.begin == null && begin == 0)) && this.end == end;
@@ -112,7 +112,7 @@ class RequestRange {
     if (another == null) {
       return false;
     }
-    return this.specified == another.specified && this.begin == another.begin && this.end == another.end && this.suffixLength == another.suffixLength;
+    return specified == another.specified && begin == another.begin && end == another.end && suffixLength == another.suffixLength;
   }
 }
 
@@ -138,17 +138,17 @@ class ResponseRange {
     }
     RegExpMatch matcher = RegExp('bytes *(\\d+)-(\\d+)/(\\d+|\\*)').firstMatch(raw);
     if (matcher != null) {
-      this.specified = true;
-      this.begin = int.parse(matcher.group(1));
-      this.end = int.parse(matcher.group(2));
+      specified = true;
+      begin = int.parse(matcher.group(1));
+      end = int.parse(matcher.group(2));
       if (matcher.group(3) != '*') {
-        this.size = int.parse(matcher.group(3));
+        size = int.parse(matcher.group(3));
       }
     }
   }
 
   bool isSameRange(int begin, int end) {
-    if (!this.specified) {
+    if (!specified) {
       return begin == 0 && end == null;
     }
     return (this.begin == begin || (this.begin == null && begin == 0)) && this.end == end;
@@ -158,7 +158,7 @@ class ResponseRange {
     if (another == null) {
       return null;
     }
-    return this.specified == another.specified && this.begin == another.begin && this.end == another.end && this.size == another.size;
+    return specified == another.specified && begin == another.begin && end == another.end && size == another.size;
   }
 }
 

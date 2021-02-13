@@ -40,7 +40,7 @@ class VideoCacheServer {
 
   /// Get the running `HttpServer`
   HttpServer get server => _server;
-  String _address;
+  final String _address;
   int _port;
 
   bool quiet = true;
@@ -81,7 +81,7 @@ class VideoCacheServer {
   /// A handler executed immediately after the request to remote returned. The default one is [handleM3u8]
   final PostRemoteRequestHandler postRemoteRequestHandler;
 
-  final Map<String, CacheInfo> _caches = Map();
+  final Map<String, CacheInfo> _caches = {};
 
   Map<String, CacheInfo> get caches => /*UnmodifiableMapView(*/ _caches /*)*/;
 
@@ -96,7 +96,7 @@ class VideoCacheServer {
   }
 
   int cacheFileIndex = 0;
-  HttpClient _httpClient;
+  final HttpClient _httpClient;
   http.Client _client;
 
   /// Instantiate a [VideoCacheServer] that listens on the specified [address] and [port].
@@ -126,13 +126,13 @@ class VideoCacheServer {
     int port,
     String cacheDir,
     HttpClient httpClient,
-    this.lazy: true,
+    this.lazy = true,
     this.securityContext,
     this.backlog,
     this.shared,
     this.badCertificateCallback,
-    this.passThrough: passThroughForMp4TrailingMetadataRequest,
-    this.postRemoteRequestHandler: handleM3u8,
+    this.passThrough = passThroughForMp4TrailingMetadataRequest,
+    this.postRemoteRequestHandler = handleM3u8,
   })  : _address = address ?? 'localhost',
         _port = port,
         _cacheDir = cacheDir,
@@ -140,9 +140,7 @@ class VideoCacheServer {
 
   /// Starts the cache server and returns the [VideoCacheServer] instance.
   Future<VideoCacheServer> start() async {
-    if (_cacheDir == null) {
-      _cacheDir = '${(await getTemporaryDirectory()).path}/video_cache_server/';
-    }
+    _cacheDir ??= '${(await getTemporaryDirectory()).path}/video_cache_server/';
     if (!_cacheDir.endsWith('/')) {
       _cacheDir += '/';
     }
@@ -197,7 +195,7 @@ class VideoCacheServer {
         : HttpServer.bindSecure(address, port, securityContext, backlog: backlog, shared: shared));
     _client ??= IOClient((_httpClient ?? HttpClient())
       ..autoUncompress = false
-      ..badCertificateCallback = this.badCertificateCallback ?? (X509Certificate cert, String host, int port) => true);
+      ..badCertificateCallback = badCertificateCallback ?? (X509Certificate cert, String host, int port) => true);
     var onError = (e, s) {
       print('Proxy Server stopped with asynchronous error\n$e\n$s');
       try {
@@ -229,8 +227,8 @@ class VideoCacheServer {
       HttpResponse httpResponse = request.response;
       try {
         httpResponse.statusCode = 500;
-        httpResponse.flush();
-        httpResponse.close();
+        await httpResponse.flush();
+        await httpResponse.close();
       } catch (_) {}
     }
   }
@@ -293,7 +291,7 @@ class VideoCacheServer {
     String realUrl;
     String cacheKey;
     String owner;
-    List<String> extraParams = List();
+    List<String> extraParams = [];
     serverRequest.requestedUri.queryParameters.forEach((key, value) {
       if(key == '__url__') {
         realUrl = value;
@@ -312,9 +310,7 @@ class VideoCacheServer {
       }
       extraParams.add('$key=${Uri.encodeComponent(value)}');
     });
-    if(cacheKey == null) {
-      cacheKey = realUrl;
-    }
+    cacheKey ??= realUrl;
     if(extraParams.isNotEmpty) {// ie: m3u8 encrypt queries
       realUrl = appendQuery(realUrl, extraParams.join('&'));
     }
@@ -393,7 +389,7 @@ class VideoCacheServer {
       clientRequest.headers.addAll(serverRequest.headers);
       clientRequest.headers['host'] = realUri.host;
 
-      List<int> bodyBytes = List();
+      List<int> bodyBytes = [];
       await serverRequest.read().forEach((element) => bodyBytes.addAll(element));
       clientRequest.bodyBytes = bodyBytes;
 
@@ -419,9 +415,7 @@ class VideoCacheServer {
         return;
       }
 
-      if (cacheInfo.headers == null) {
-        cacheInfo.headers = Map.from(clientResponse.headers);
-      }
+      cacheInfo.headers ??= Map.from(clientResponse.headers);
       ResponseRange responseRange =
           clientResponse.statusCode == 206 ? ResponseRange.parse(clientResponse.headers['content-range']) : ResponseRange.unspecified();
       if (cacheInfo.total == null) {

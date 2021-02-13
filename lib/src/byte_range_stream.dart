@@ -3,6 +3,8 @@
 
 import 'dart:async';
 
+import 'package:pedantic/pedantic.dart';
+
 /// Take a range of bytes from a `Stream<List<int>>`.
 class ByteRangeStream {
   /// Take a range of bytes from the [source] stream.
@@ -10,7 +12,7 @@ class ByteRangeStream {
   /// The [begin] of the range is inclusive and default to 0 which will start at the beginning of the source stream.
   ///
   /// The [end] of the stream is exclusive, and if a null value is provided, the taking will walk forward until reaches the end of the source or when the subscription is cancelled.
-  static Stream<List<int>> range(Stream<List<int>> source, {int begin: 0, int end}) {
+  static Stream<List<int>> range(Stream<List<int>> source, {int begin = 0, int end}) {
     StreamController<List<int>> controller = StreamController();
     StreamSubscription<List<int>> subscription;
     bool passThrough = begin == 0 && end == null;
@@ -85,7 +87,7 @@ class ByteRangeStream {
     };
     controller.onCancel = () async {
       // print('---- onCancel');
-      controller.close();
+      unawaited(controller.close());
       return subscription.cancel();
     };
     return controller.stream;

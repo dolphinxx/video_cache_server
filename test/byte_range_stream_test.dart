@@ -8,9 +8,9 @@ import 'package:video_cache_server/src/byte_range_stream.dart';
 void main() {
   List<List<int>> generateData() {
     List<List<int>> data = [
-      List(),
-      List(),
-      List(),
+      [],
+      [],
+      [],
     ];
     for (int i = 0; i < 30; i++) {
       data[i ~/ 10].add(i);
@@ -22,7 +22,7 @@ void main() {
     List<List<int>> data = generateData();
     Stream<List<int>> stream = Stream.fromIterable(data);
     int receivedCount = 0;
-    List<int> received = List();
+    List<int> received = [];
     stream = ByteRangeStream.range(stream, begin: 5, end: 15);
     Completer completer = Completer();
     stream.listen((element) {
@@ -44,7 +44,7 @@ void main() {
     List<List<int>> data = generateData();
     Stream<List<int>> stream = Stream.fromIterable(data);
     int receivedCount = 0;
-    List<int> received = List();
+    List<int> received = [];
     stream = ByteRangeStream.range(stream, begin: 0, end: 15);
     Completer completer = Completer();
     stream.listen((element) {
@@ -66,7 +66,7 @@ void main() {
     List<List<int>> data = generateData();
     Stream<List<int>> stream = Stream.fromIterable(data);
     int receivedCount = 0;
-    List<int> received = List();
+    List<int> received = [];
     stream = ByteRangeStream.range(
       stream,
       begin: 0,
@@ -84,7 +84,7 @@ void main() {
     });
     await completer.future;
     print('received:$receivedCount');
-    List<int> expected = data.fold(List(), (previousValue, element) => previousValue..addAll(element));
+    List<int> expected = data.fold([], (previousValue, element) => previousValue..addAll(element));
     expect(receivedCount, expected.length);
     expect(received, expected);
   });
@@ -92,7 +92,7 @@ void main() {
     List<List<int>> data = generateData();
     Stream<List<int>> stream = Stream.fromIterable(data);
     int receivedCount = 0;
-    List<int> received = List();
+    List<int> received = [];
     stream = ByteRangeStream.range(
       stream,
       begin: 4,
@@ -110,7 +110,7 @@ void main() {
     });
     await completer.future;
     print('received:$receivedCount');
-    List<int> expected = data.fold<List<int>>(List<int>(), (previousValue, element) => previousValue..addAll(element)).sublist(4);
+    List<int> expected = data.fold<List<int>>(<int>[], (previousValue, element) => previousValue..addAll(element)).sublist(4);
     expect(receivedCount, expected.length);
     expect(received, expected);
   });
@@ -118,7 +118,7 @@ void main() {
     List<List<int>> data = generateData();
     Stream<List<int>> stream = Stream.fromIterable(data);
     int receivedCount = 0;
-    List<int> received = List();
+    List<int> received = [];
     stream = ByteRangeStream.range(stream, begin: 4, end: 50);
     Completer completer = Completer();
     stream.listen((element) {
@@ -133,7 +133,7 @@ void main() {
     });
     await completer.future;
     print('received:$receivedCount');
-    List<int> expected = data.fold<List<int>>(List<int>(), (previousValue, element) => previousValue..addAll(element)).sublist(4);
+    List<int> expected = data.fold<List<int>>(<int>[], (previousValue, element) => previousValue..addAll(element)).sublist(4);
     expect(receivedCount, expected.length);
     expect(received, expected);
   });
@@ -141,7 +141,7 @@ void main() {
     List<List<int>> data = generateData();
     Stream<List<int>> stream = Stream.fromIterable(data);
     int receivedCount = 0;
-    List<int> received = List();
+    List<int> received = [];
     stream = ByteRangeStream.range(stream, begin: 0, end: 30);
     Completer completer = Completer();
     stream.listen((element) {
@@ -156,7 +156,7 @@ void main() {
     });
     await completer.future;
     print('received:$receivedCount');
-    List<int> expected = data.fold<List<int>>(List<int>(), (previousValue, element) => previousValue..addAll(element));
+    List<int> expected = data.fold<List<int>>(<int>[], (previousValue, element) => previousValue..addAll(element));
     expect(receivedCount, expected.length);
     expect(received, expected);
   });

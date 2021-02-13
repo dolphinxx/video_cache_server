@@ -31,9 +31,9 @@ class PlayerWidgetState extends State<PlayerWidget> {
     if (newPlayerType == playerType) {
       return;
     }
-    if (this.mounted) {
-      this.setState(() {
-        this.playerType = newPlayerType;
+    if (mounted) {
+      setState(() {
+        playerType = newPlayerType;
       });
     }
   }
@@ -43,8 +43,8 @@ class PlayerWidgetState extends State<PlayerWidget> {
     super.initState();
     server.start().then((_) {
       proxyUrl = _.getProxyUrl(widget.url);
-      if (this.mounted) {
-        this.setState(() {});
+      if (mounted) {
+        setState(() {});
       }
     });
   }
@@ -167,8 +167,8 @@ class VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     super.initState();
     _controller = VideoPlayerController.network(widget.url)
       ..initialize().then((value) {
-        if (this.mounted) {
-          this.setState(() {});
+        if (mounted) {
+          setState(() {});
         }
       });
   }
@@ -181,6 +181,6 @@ class VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.isInitialized == true ? VideoPlayer(_controller) : Container();
+    return _controller.value.initialized == true ? VideoPlayer(_controller) : Container();
   }
 }

@@ -1,8 +1,8 @@
 // Copyright (c) 2020, dolphinxx <bravedolphinxx@gmail.com>. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-const String MIME_TYPE_M3U8_1 = "x-mpegurl";
-const String MIME_TYPE_M3U8_2 = "vnd.apple.mpegurl";
+const String MIME_TYPE_M3U8_1 = 'x-mpegurl';
+const String MIME_TYPE_M3U8_2 = 'vnd.apple.mpegurl';
 
 bool isM3u8MimeType(String mimeType) {
   return mimeType?.contains(MIME_TYPE_M3U8_1) == true || mimeType?.contains(MIME_TYPE_M3U8_2) == true;
@@ -29,7 +29,7 @@ class M3u8 {
   bool master = false;
 
   /// playlists appeared in this m3u8 file
-  final List<String> playlists = List();
+  final List<String> playlists = [];
 
   M3u8(this.raw);
 }
@@ -43,7 +43,7 @@ class M3u8 {
 ///
 /// The contents of `#EXTINF` tags are replaced by the absolute ones, if the m3u8 file contains a `#EXT-X-ENDLIST`, then the contents are also proxied at the same time.
 ///
-M3u8 proxyM3u8Content(String content, String proxy(String raw), Uri uri) {
+M3u8 proxyM3u8Content(String content, String Function(String raw) proxy, Uri uri) {
   bool isLive = !content.contains('#EXT-X-ENDLIST');
   String tagName;
   M3u8 m3u8 = M3u8(content);

@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'dart:io';
-import 'dart:math' as Math;
+import 'dart:math' as math;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
+import 'package:pedantic/pedantic.dart';
 
 import 'package:video_cache_server/video_cache_server.dart';
 import './file_server.dart';
@@ -17,14 +18,14 @@ void main() {
   int testFileSize = 501375126;
   String testFileChecksum = '560957867016591759EB73DA39E673AE3902EE1C3AED912FD421478AD4E4146F';
   String cacheDir = '/tmp/test/video_proxy_cache';
-  Math.Random random = Math.Random();
-  var randomPosition = (int length) => Math.min((random.nextDouble() * length).toInt(), length - 1);
+  math.Random random = math.Random();
+  var randomPosition = (int length) => math.min((random.nextDouble() * length).toInt(), length - 1);
   Future<String> calcChecksum(Stream<List<int>> stream) async {
     return (await sha256.bind(stream).first).toString();
   }
 
   Future<List<int>> readFileInRange(String file, int begin, int end) async {
-    return File(file).openRead(begin, end).fold<List<int>>(List<int>(), (List<int> previous, List<int> element) => previous..addAll(element));
+    return File(file).openRead(begin, end).fold<List<int>>(<int>[], (List<int> previous, List<int> element) => previous..addAll(element));
   }
 
   test('local file single request', () async {
@@ -86,7 +87,7 @@ void main() {
       expect(received, expectedLength, reason: 'length should be same');
     } finally {
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('remote file single request', () async {
@@ -142,7 +143,7 @@ void main() {
       expect(received, expectedLength, reason: 'length should be same');
     } finally {
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)), skip: true);
   test('local file multiple request', () async {
@@ -171,7 +172,7 @@ void main() {
       await performRequest(0, 125343781);
       await performRequest(125343781, 250687563);
       await performRequest(250687563, 501371111);
-      await server.close();
+      await unawaited(server.close());
 
       CacheInfo cache = _server.caches[url];
       print('Cache:');
@@ -195,7 +196,7 @@ void main() {
       expect(checksum.toLowerCase(), expectedChecksum.toLowerCase(), reason: 'checksum should be same.');
     } finally {
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('local file simulate seeking', () async {
@@ -227,37 +228,37 @@ void main() {
         }
       };
 
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 500));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 300));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 500));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 1000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 200));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 1000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 3000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
       await performRequest((expectedLength * 3) ~/ 4, null).then((value) => expect(value, greaterThan(0)));
       await Future.delayed(Duration(milliseconds: 2000));
@@ -291,7 +292,7 @@ void main() {
       expect(checksum.toLowerCase(), expectedChecksum.toLowerCase(), reason: 'checksum should be same.');
     } finally {
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test(
@@ -322,28 +323,28 @@ void main() {
           }
         };
 
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 2000));
         // a request with range refer to trailing few bytes.
-        performRequest(expectedLength - 1000, expectedLength).then((v) => expect(v, 1000, reason: 'this request should not be interrupted.'));
+        unawaited(performRequest(expectedLength - 1000, expectedLength).then((v) => expect(v, 1000, reason: 'this request should not be interrupted.')));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 2000));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 2000));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 2000));
         await performRequest(randomPosition(expectedLength), null)
             .then((value) => expect(value, greaterThan(0), reason: 'awaited request should not be interrupted.'));
@@ -364,7 +365,7 @@ void main() {
         expect(cachedSize, expectedLength, reason: 'cached data size should be equal to expected');
       } finally {
         _server.stop();
-        _server.clear();
+        unawaited(_server.clear());
       }
     },
     timeout: Timeout(Duration(days: 1)),
@@ -397,18 +398,18 @@ void main() {
           }
         };
 
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 2000));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 2000));
         // a request with range refer to trailing few bytes.
-        performRequest(expectedLength - 1000, expectedLength);
+        unawaited(performRequest(expectedLength - 1000, expectedLength));
         await Future.delayed(Duration(milliseconds: 500));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 100));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 100));
-        performRequest(randomPosition(expectedLength), null);
+        unawaited(performRequest(randomPosition(expectedLength), null));
         await Future.delayed(Duration(milliseconds: 3000));
         await performRequest(376031344, null).then((value) => expect(value, greaterThan(0), reason: 'awaited request should not be interrupted.'));
         await Future.delayed(Duration(milliseconds: 5000));
@@ -428,7 +429,7 @@ void main() {
         expect(cachedSize, expectedLength, reason: 'cached data size should be equal to expected');
       } finally {
         _server.stop();
-        _server.clear();
+        unawaited(_server.clear());
       }
     },
     timeout: Timeout(Duration(days: 1)), /* skip: 'Test might fail if the requests do not performed in order.'*/
@@ -462,19 +463,19 @@ void main() {
         }
       };
 
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(expectedLength - 1000, expectedLength);
+      unawaited(performRequest(expectedLength - 1000, expectedLength));
       await Future.delayed(Duration(milliseconds: 500));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
-      performRequest(randomPosition(expectedLength), null);
+      unawaited(performRequest(randomPosition(expectedLength), null));
       await Future.delayed(Duration(milliseconds: 2000));
       // a full request to ensure that all data is cached.
       await performRequest(0, null);
@@ -512,7 +513,7 @@ void main() {
       expect(checksum.toLowerCase(), expectedChecksum.toLowerCase(), reason: 'checksum should be same.');
     } finally {
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range contained in the cache in middle', () async {
@@ -552,9 +553,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 1);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range contained in the cache to the end', () async {
@@ -594,9 +595,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 1);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range contained in the cache from the beginning', () async {
@@ -636,9 +637,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 1);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range crosses the beginning of the cache', () async {
@@ -678,9 +679,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 2);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range crosses the end of the cache', () async {
@@ -720,9 +721,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 2);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range contains cache in middle', () async {
@@ -762,9 +763,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 3);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range contains the cache from the beginning', () async {
@@ -804,9 +805,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 2);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range contains the cache to the end', () async {
@@ -846,9 +847,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 2);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range stays out of cache', () async {
@@ -888,9 +889,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 2);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
   test('test range sticks discontinuously to the cache', () async {
@@ -934,9 +935,9 @@ void main() {
       expect(actual, expected);
       expect(_server.caches[url].fragments.length, 5);
     } finally {
-      server.close();
+      unawaited(server.close());
       _server.stop();
-      _server.clear();
+      unawaited(_server.clear());
     }
   }, timeout: Timeout(Duration(days: 1)));
 }
