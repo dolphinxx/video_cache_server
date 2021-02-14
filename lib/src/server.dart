@@ -23,6 +23,8 @@ typedef PassThrough = FutureOr<bool> Function(ProxyRequest serverRequest, CacheI
 typedef PostRemoteRequestHandler = FutureOr Function(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer videoCacheServer, String owner);
 typedef BadCertificateCallback = bool Function(X509Certificate cert, String host, int port);
 
+typedef RequestHeaderInterceptor = void Function(Map<String, String> headers);
+
 /// This plugin starts a local [HttpServer], handles requests with particular urls:
 ///
 /// `video_url` => `http://localhost:${proxyServerPort}?url=${Uri.encodeComponent(video_url)}`
@@ -80,6 +82,9 @@ class VideoCacheServer {
 
   /// A handler executed immediately after the request to remote returned. The default one is [handleM3u8]
   final PostRemoteRequestHandler postRemoteRequestHandler;
+
+  /// Provide a way to modify the request headers
+  RequestHeaderInterceptor requestHeaderInterceptor;
 
   final Map<String, CacheInfo> _caches = {};
 
@@ -392,6 +397,10 @@ class VideoCacheServer {
         host = '$host:${realUri.port}';
       }
       clientRequest.headers['host'] = host;
+
+      if(requestHeaderInterceptor != null) {
+        requestHeaderInterceptor(clientRequest.headers);
+      }
 
       List<int> bodyBytes = [];
       await serverRequest.read().forEach((element) => bodyBytes.addAll(element));
