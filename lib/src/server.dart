@@ -387,7 +387,11 @@ class VideoCacheServer {
       http.Request clientRequest = http.Request(serverRequest.method, realUri);
       clientRequest.followRedirects = true;
       clientRequest.headers.addAll(serverRequest.headers);
-      clientRequest.headers['host'] = realUri.host;
+      String host = realUri.host;
+      if(!(realUri.port == 80 && realUri.scheme == 'http' || realUri.port == 443 && realUri.scheme == 'https')) {
+        host = '$host:${realUri.port}';
+      }
+      clientRequest.headers['host'] = host;
 
       List<int> bodyBytes = [];
       await serverRequest.read().forEach((element) => bodyBytes.addAll(element));
