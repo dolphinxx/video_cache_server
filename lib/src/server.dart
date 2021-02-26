@@ -334,7 +334,13 @@ class VideoCacheServer {
     if (cacheInfo != null && (cacheInfo.cached(requestRange))) {
       // cache exists and finished download, don't perform another request
       if (cacheInfo.headers != null) {
-        cacheInfo.headers.forEach((key, value) => response.headers.set(key, value));
+        cacheInfo.headers.forEach((key, value) {
+          try {
+            response.headers.set(key, value);
+          } catch (e, s) {
+            print('copy header failed.\n$e\n$s');
+          }
+        });
       }
 
       if (requestRange.specified) {
@@ -411,7 +417,11 @@ class VideoCacheServer {
       // print('StatusCode:${clientResponse.statusCode}');
       clientResponse.headers.forEach((key, value) {
         if (value == null) return;
-        response.headers.set(key, value);
+        try {
+          response.headers.set(key, value);
+        } catch (e, s) {
+          print('copy header failed.\n$e\n$s');
+        }
         // print('Header:$key=$value');
       });
       // print('============================');
@@ -421,7 +431,11 @@ class VideoCacheServer {
         response.contentLength = clientResponse.contentLength ?? -1;
         clientResponse.headers.forEach((key, value) {
           if (value == null) return;
-          response.headers.set(key, value);
+          try {
+            response.headers.set(key, value);
+          } catch (e, s) {
+            print('copy header failed.\n$e\n$s');
+          }
         });
         await response.addStream(clientResponse.stream);
         await response.close();
@@ -498,7 +512,11 @@ class VideoCacheServer {
     response.contentLength = clientResponse.contentLength ?? -1;
     clientResponse.headers.forEach((key, value) {
       if (value == null) return;
-      response.headers.set(key, value);
+      try {
+        response.headers.set(key, value);
+      } catch (e, s) {
+        print('copy header failed.\n$e\n$s');
+      }
     });
     await response.addStream(clientResponse.stream);
     await response.close();
