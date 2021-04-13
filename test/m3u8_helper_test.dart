@@ -62,7 +62,7 @@ void main() {
     });
   });
   group('isM3u8', () {
-    var _test = (String contentType, Uri uri, bool expected) {
+    var _test = (String contentType, Uri? uri, bool expected) {
       bool actual = isM3u8(contentType, uri);
       expect(actual, expected);
     };

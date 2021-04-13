@@ -1,29 +1,28 @@
 // Copyright (c) 2020, dolphinxx <bravedolphinxx@gmail.com>. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
+
+import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
-
-import 'package:flutter/foundation.dart';
 import 'package:pedantic/pedantic.dart';
-import './io_streamed_response.dart';
-import './io_client.dart';
 
-import './http_helper.dart';
 import './byte_range_stream.dart';
+import './http_helper.dart';
+import './io_client.dart';
+import './io_streamed_response.dart';
 
 typedef SubscriptionSetter = void Function(StreamSubscription<List<int>> subscription);
 typedef DataFetcher = Future<CacheFragment> Function(int begin, int end, StreamController<List<int>> receiver);
 
-class ScheduledTask {
-  bool waiting = true;
-  bool responseDone = false;
-  Completer completer;
-  StreamSubscription subscription;
-}
+// class ScheduledTask {
+//   bool waiting = true;
+//   bool responseDone = false;
+//   Completer completer;
+//   StreamSubscription subscription;
+// }
 
 class CacheInfo {
   final bool lazy;
@@ -31,22 +30,22 @@ class CacheInfo {
   final List<CacheFragment> fragments = [];
 
   /// The index url this cache is belong to. For a `.ts` file cache, this is the url of the `m3u8` file containing it.
-  final String belongTo;
-  int current;
-  int total;
-  Map<String, String> headers;
+  final String? belongTo;
+  int? current;
+  int? total;
+  Map<String, String>? headers;
 
   bool get finished => current == total;
-  StreamSubscription subscription;
+  StreamSubscription? subscription;
 
-  StreamController<List<int>> _controller;
-  Object _entrantIdentity;
+  StreamController<List<int>>? _controller;
+  Object? _entrantIdentity;
 
-  Future<dynamic> _lastEntrant;
+  Future<dynamic>? _lastEntrant;
 
   CacheInfo({
-    @required this.url,
-    @required this.lazy,
+    required this.url,
+    this.lazy = true,
     this.belongTo,
   });
 
@@ -54,8 +53,8 @@ class CacheInfo {
     if (requestRange.begin == null || requestRange.end == null) {
       return finished;
     }
-    int begin = requestRange.begin;
-    int end = requestRange.end + 1;
+    int begin = requestRange.begin!;
+    int end = requestRange.end! + 1;
     List<CacheFragment> rangesMatched = fragments
         .where((element) =>
             (element.begin >= begin && element.begin < end) || (element.end <= end && element.end > begin) || (element.begin < begin && element.end > end))
@@ -74,9 +73,9 @@ class CacheInfo {
   }
 
   /// Creates a stream to serve data from [begin] to [end], data is read from cache.
-  Stream<List<int>> streamFromCache({int begin = 0, int end}) {
-    StreamController<List<int>> controller;
-    StreamSubscription $subscription;
+  Stream<List<int>> streamFromCache({int begin = 0, int? end}) {
+    late StreamController<List<int>> controller;
+    StreamSubscription? $subscription;
     controller = StreamController(onListen: () async {
       // print(''Stream[$begin-$end] - onListen');
       try {
@@ -89,7 +88,7 @@ class CacheInfo {
           Completer subscriptionCompleter = Completer();
           int _relativeBegin = $begin - fragment.begin;
           int _relativeEnd = end == null ? fragment.received : math.min(end - fragment.begin, fragment.received);
-          $subscription = fragment.file.openRead(_relativeBegin, _relativeEnd).listen(
+          $subscription = fragment.file?.openRead(_relativeBegin, _relativeEnd).listen(
             (event) {
               try {
                 if (controller.isClosed) {
@@ -103,7 +102,7 @@ class CacheInfo {
                 }
               }
             },
-            onError: (e, s) {
+            onError: (Object e, StackTrace s) {
               if (!subscriptionCompleter.isCompleted) {
                 subscriptionCompleter.completeError(e, s);
               }
@@ -118,7 +117,7 @@ class CacheInfo {
             await subscriptionCompleter.future;
           } finally {
             try {
-              await $subscription.cancel();
+              await $subscription?.cancel();
             } catch (_) {}
           }
           $begin += _relativeEnd - _relativeBegin;
@@ -150,13 +149,13 @@ class CacheInfo {
   /// Synchronous the [_stream] entry
   Future<Stream<List<int>>> stream({
     int begin = 0,
-    int end,
-    File Function() createFragmentFile,
-    IOStreamedResponse clientResponse,
-    IOClient client,
-    http.Request clientRequest,
+    int? end,
+    required File Function() createFragmentFile,
+    IOStreamedResponse? clientResponse,
+    required IOClient client,
+    required http.Request clientRequest,
   }) async {
-    Future prev = _lastEntrant;
+    Future? prev = _lastEntrant;
     Completer completer = Completer.sync();
     _lastEntrant = completer.future;
 
@@ -175,17 +174,15 @@ class CacheInfo {
   /// Creates a stream to serve the data from [begin] to [end], data may be from cache or remote.
   Stream<List<int>> _stream({
     int begin = 0,
-    int end,
-    File Function() createFragmentFile,
-    IOStreamedResponse clientResponse,
-    IOClient client,
-    http.Request clientRequest,
+    int? end,
+    required File Function() createFragmentFile,
+    IOStreamedResponse? clientResponse,
+    required IOClient client,
+    required http.Request clientRequest,
   }) {
-    if (_controller != null) {
-      _controller.close();
-    }
+    _controller?.close();
     Object entrantIdentity = _entrantIdentity = Object();
-    StreamController<List<int>> controller;
+    late StreamController<List<int>> controller;
     controller = _controller = StreamController<List<int>>(onListen: () async {
       // print(''Stream[$begin-$end] - onListen');
       if (!identical(entrantIdentity, _entrantIdentity)) {
@@ -230,30 +227,26 @@ class CacheInfo {
 
   /// [end] may be null when the response from remote doesn't provide a content-length.
   Future<void> _writeData({
-    int begin,
-    int end,
-    IOStreamedResponse previousResponse,
-    File Function() createFragmentFile,
-    IOClient client,
-    http.Request clientRequest,
-    StreamController<List<int>> controller,
-    bool recursive,
+    required int begin,
+    int? end,
+    IOStreamedResponse? previousResponse,
+    required File Function() createFragmentFile,
+    required IOClient client,
+    required http.Request clientRequest,
+    required StreamController<List<int>> controller,
+    bool recursive = false,
   }) async {
-    CacheFragment fragment = fragments.firstWhere((element) => element.contains(begin), orElse: () => null);
+    CacheFragment? fragment = fragments.firstWhereOrNull((element) => element.contains(begin));
     if (fragment == null) {
       // fetch from remote
-      CacheFragment nextFragment = fragments.firstWhere((element) => element.begin > begin, orElse: () => null);
+      CacheFragment? nextFragment = fragments.firstWhereOrNull((element) => element.begin > begin);
 
-      int _end = end == null ? nextFragment?.begin : (nextFragment?.begin != null ? math.min(nextFragment.begin, end) : end);
+      int? _end = end == null ? nextFragment?.begin : (nextFragment != null ? math.min(nextFragment.begin, end) : end);
 
       // print('Reading from remote - [$begin-$_end, url:$url]');
       File cacheFile = createFragmentFile();
       cacheFile.parent.createSync(recursive: true);
-      fragment = CacheFragment()
-        ..file = cacheFile
-        ..begin = begin
-        ..end = begin
-        ..expected = _end != null ? _end - begin : -1;
+      fragment = CacheFragment(begin: begin, end: begin, file: cacheFile, expected: _end != null ? _end - begin : -1);
       fragments.add(fragment);
       IOSink sink = cacheFile.openWrite(mode: FileMode.write);
       try {
@@ -282,7 +275,7 @@ class CacheInfo {
           // range begin relative to the ranged response stream
           int _$begin;
           if (_range.begin != null) {
-            _$begin = begin - _range.begin;
+            _$begin = begin - _range.begin!;
           } else {
             _$begin = begin;
           }
@@ -302,12 +295,12 @@ class CacheInfo {
                 return;
               }
               transferred += element.length;
-              if (fragment.expected != -1 && transferred > fragment.expected) {
+              if (fragment!.expected != -1 && transferred > fragment.expected) {
                 print('fetcher data[$begin-$end] exceeded, expected:${fragment.expected}, transferred:$transferred');
               }
               controller.add(element);
               sink.add(element);
-              current += element.length;
+              current = current! + element.length;
               fragment.end += element.length;
             } catch (e, s) {
               if (!_subscriptionCompleter.isCompleted) {
@@ -325,7 +318,7 @@ class CacheInfo {
               _subscriptionCompleter.complete();
             }
           },
-          onError: (e, s) {
+          onError: (Object e, StackTrace s) {
             if (!_subscriptionCompleter.isCompleted) {
               _subscriptionCompleter.completeError(e, s);
             }
@@ -349,8 +342,8 @@ class CacheInfo {
         } catch (_) {}
         if (fragment.received == 0) {
           fragments.remove(fragment);
-          if (fragment.file.existsSync()) {
-            fragment.file.deleteSync();
+          if (fragment.file!.existsSync()) {
+            fragment.file!.deleteSync();
           }
         }
       }
@@ -358,7 +351,7 @@ class CacheInfo {
       // read from cache file
       int __end = end == null ? fragment.end : math.min(end, fragment.end);
       // print('Reading from cache - [$begin-$__end, url:$url]');
-      Stream stream = fragment.file.openRead(begin - fragment.begin, __end - fragment.begin);
+      Stream<List<int>> stream = fragment.file!.openRead(begin - fragment.begin, __end - fragment.begin);
 
       Completer _subscriptionCompleter = Completer();
       // using subscription to control stream's pause/resume
@@ -381,7 +374,7 @@ class CacheInfo {
             _subscriptionCompleter.complete();
           }
         },
-        onError: (e, s) {
+        onError: (Object e, StackTrace s) {
           if (!_subscriptionCompleter.isCompleted) {
             _subscriptionCompleter.completeError(e, s);
           }
@@ -425,12 +418,12 @@ class CacheInfo {
   }
 
   CacheInfo.fromMap(Map map)
-      : url = map['url'],
-        lazy = map['lazy'],
-        belongTo = map['belongTo'] {
-    fragments.addAll((map['fragments'] as List).map((e) => CacheFragment.fromMap(e)));
-    current = map['current'];
-    total = map['total'];
+      : url = map['url'] as String,
+        lazy = map['lazy'] as bool,
+        belongTo = map['belongTo'] == null ? null : map['belongTo'] as String {
+    fragments.addAll((map['fragments'] as List).map((e) => CacheFragment.fromMap(e as Map<dynamic, dynamic>)));
+    current = map['current'] as int;
+    total = map['total'] as int;
     if (map['headers'] != null) {
       headers = (map['headers'] as Map).cast<String, String>();
     }
@@ -454,15 +447,15 @@ class CacheInfo {
 }
 
 class CacheFragment {
-  File file;
-  int begin;
-  int end;
+  File? file;
+  late int begin;
+  late int end;
 
   /// received byte count
   int get received => end - begin;
 
   /// the expected byte count
-  int expected;
+  late int expected;
 
   bool contains(int begin) => this.begin <= begin && end > begin;
 
@@ -479,12 +472,12 @@ class CacheFragment {
     return toMap();
   }
 
-  CacheFragment();
+  CacheFragment({required this.begin, required this.end, this.file, this.expected=0});
 
   CacheFragment.fromMap(Map map) {
-    file = map['file'] != null ? File(map['file']) : null;
-    begin = map['begin'];
-    end = map['end'];
-    expected = map['expected'];
+    file = map['file'] != null ? File(map['file'] as String) : null;
+    begin = map['begin'] as int;
+    end = map['end'] as int;
+    expected = map['expected'] as int;
   }
 }

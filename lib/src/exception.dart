@@ -5,7 +5,7 @@ class InterruptedError extends Error {
   /// Where this Error is thrown
   final String location;
   @override
-  StackTrace stackTrace;
+  StackTrace? stackTrace;
 
-  InterruptedError(this.location, {StackTrace stackTrace});
+  InterruptedError(this.location, {StackTrace? stackTrace});
 }

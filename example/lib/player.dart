@@ -80,7 +80,7 @@ class PlayerWidgetState extends State<PlayerWidget> {
                         groupValue: playerType,
                         value: PLAYER_FIJKPLAYER,
                         onChanged: (value) {
-                          switchPlayer(value);
+                          switchPlayer(value as String);
                         },
                       ),
                       Text(PLAYER_FIJKPLAYER),
@@ -94,7 +94,7 @@ class PlayerWidgetState extends State<PlayerWidget> {
                         groupValue: playerType,
                         value: PLAYER_VIDEOPLAYER,
                         onChanged: (value) {
-                          switchPlayer(value);
+                          switchPlayer(value as String);
                         },
                       ),
                       Text(PLAYER_VIDEOPLAYER),

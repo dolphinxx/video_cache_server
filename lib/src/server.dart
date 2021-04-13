@@ -1,26 +1,27 @@
 // Copyright (c) 2020, dolphinxx <bravedolphinxx@gmail.com>. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'dart:convert';
-
-import './exception.dart';
-import 'package:http/http.dart' as http;
-import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
-import './m3u8_helper.dart';
-import './io_client.dart';
-import './io_streamed_response.dart';
-import './cache.dart';
-import './http_helper.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import './cache.dart';
+import './exception.dart';
+import './http_helper.dart';
+import './io_client.dart';
+import './io_streamed_response.dart';
+import './m3u8_helper.dart';
+
 /// Return true to pass through the request
-typedef PassThrough = FutureOr<bool> Function(ProxyRequest serverRequest, CacheInfo cacheInfo);
+typedef PassThrough = FutureOr<bool> Function(ProxyRequest serverRequest, CacheInfo? cacheInfo);
 
 /// Return true if the response is finished in this handler.
 /// [owner] is the `cacheKey` this uri's cache [belongTo] or owned
-typedef PostRemoteRequestHandler = FutureOr Function(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer videoCacheServer, String owner);
+typedef PostRemoteRequestHandler = FutureOr<bool> Function(
+    Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer videoCacheServer, String owner);
 typedef BadCertificateCallback = bool Function(X509Certificate cert, String host, int port);
 
 typedef RequestHeaderInterceptor = void Function(Map<String, String> headers);
@@ -38,23 +39,23 @@ typedef RequestHeaderInterceptor = void Function(Map<String, String> headers);
 /// See the sample codes for detail usage.
 
 class VideoCacheServer {
-  HttpServer _server;
+  HttpServer? _server;
 
   /// Get the running `HttpServer`
-  HttpServer get server => _server;
+  HttpServer? get server => _server;
   final String _address;
   int _port;
 
   bool quiet = true;
 
   /// This field is passed to [HttpServer.bind] transparently, see the doc of that method for more information.
-  final SecurityContext securityContext;
+  final SecurityContext? securityContext;
 
   /// This field is passed to [HttpServer.bind] transparently, see the doc of that method for more information.
-  final int backlog;
+  final int? backlog;
 
   /// This field is passed to [HttpServer.bind] transparently, see the doc of that method for more information.
-  final bool shared;
+  final bool? shared;
   final bool lazy;
 
   bool _started = false;
@@ -62,14 +63,14 @@ class VideoCacheServer {
   bool get started => _started;
 
   /// The [InternetAddress] the cache server is listening on, return null if the server is not started.
-  InternetAddress get address => _server?.address;
+  InternetAddress? get address => _server?.address;
 
   /// The port number the cache server is listening on, return null if the server is not started.
-  int get port => _server?.port;
+  int? get port => _server?.port;
 
-  String _cacheDir;
+  String? _cacheDir;
 
-  final BadCertificateCallback badCertificateCallback;
+  final BadCertificateCallback? badCertificateCallback;
 
   /// Provide a tester to pass through the request, executed before cache is checked.
   ///
@@ -78,13 +79,13 @@ class VideoCacheServer {
   /// IjkPlayer performs a metadata request to fetch the trailing few bytes (below 1k), and it interrupts the previous stream request.
   /// Then the player performs a new stream request which may interrupt the previous metadata request, which breaks the seeking functionality.
   /// This doesn't break the caching, since the stream request will walk through the whole data including the passed data range.
-  final PassThrough passThrough;
+  final PassThrough? passThrough;
 
   /// A handler executed immediately after the request to remote returned. The default one is [handleM3u8]
-  final PostRemoteRequestHandler postRemoteRequestHandler;
+  final PostRemoteRequestHandler? postRemoteRequestHandler;
 
   /// Provide a way to modify the request headers
-  RequestHeaderInterceptor requestHeaderInterceptor;
+  RequestHeaderInterceptor? requestHeaderInterceptor;
 
   final Map<String, CacheInfo> _caches = {};
 
@@ -101,8 +102,8 @@ class VideoCacheServer {
   }
 
   int cacheFileIndex = 0;
-  final HttpClient _httpClient;
-  http.Client _client;
+  final HttpClient? _httpClient;
+  IOClient? _client;
 
   /// Instantiate a [VideoCacheServer] that listens on the specified [address] and [port].
   ///
@@ -127,10 +128,10 @@ class VideoCacheServer {
   ///
   /// The [securityContext], [backlog] and [shared] arguments is transparently passed to the [HttpServer.bind], please read doc of that method for more information.
   VideoCacheServer({
-    String address,
-    int port,
-    String cacheDir,
-    HttpClient httpClient,
+    String? address,
+    int? port,
+    String? cacheDir,
+    HttpClient? httpClient,
     this.lazy = true,
     this.securityContext,
     this.backlog,
@@ -139,26 +140,26 @@ class VideoCacheServer {
     this.passThrough = passThroughForMp4TrailingMetadataRequest,
     this.postRemoteRequestHandler = handleM3u8,
   })  : _address = address ?? 'localhost',
-        _port = port,
+        _port = port ?? 0,
         _cacheDir = cacheDir,
         _httpClient = httpClient;
 
   /// Starts the cache server and returns the [VideoCacheServer] instance.
   Future<VideoCacheServer> start() async {
     _cacheDir ??= '${(await getTemporaryDirectory()).path}/video_cache_server/';
-    if (!_cacheDir.endsWith('/')) {
-      _cacheDir += '/';
+    if (!_cacheDir!.endsWith('/')) {
+      _cacheDir = _cacheDir! + '/';
     }
-    Directory cacheDirectory = Directory(_cacheDir);
+    Directory cacheDirectory = Directory(_cacheDir!);
     if (cacheDirectory.existsSync() && cacheDirectory.statSync().type != FileSystemEntityType.directory) {
       throw AsyncError('The location which the cacheDir[$_cacheDir] indicates to is not a type of directory!', StackTrace.current);
     }
     cacheDirectory.createSync(recursive: true);
-    _server = await _serve(_address, _port ?? 0, securityContext: securityContext);
-    _port = _server.port;
+    _server = await _serve(_address, _port, securityContext: securityContext);
+    _port = _server!.port;
     _started = true;
     if (quiet != true) {
-      print('Video Cache Server serving at http${securityContext == null ? "" : "s"}://${_server.address.host}:${_server.port}');
+      print('Video Cache Server serving at http${securityContext == null ? "" : "s"}://${_server!.address.host}:${_server!.port}');
     }
     return this;
   }
@@ -177,8 +178,8 @@ class VideoCacheServer {
   Future<void> clear() async {
     _caches.clear();
     cacheFileIndex = 0;
-    if(_cacheDir != null) {
-      Directory cacheDir = Directory(_cacheDir);
+    if (_cacheDir != null) {
+      Directory cacheDir = Directory(_cacheDir!);
       if (cacheDir.existsSync()) {
         for (FileSystemEntity file in cacheDir.listSync()) {
           try {
@@ -193,7 +194,7 @@ class VideoCacheServer {
 
   /// Starts an [HttpServer] that listens on the specified [address] and
   /// [port] and sends requests to [_proxyAndCache].
-  Future<HttpServer> _serve(address, int port, {SecurityContext securityContext, int backlog, bool shared = false}) async {
+  Future<HttpServer> _serve(address, int port, {SecurityContext? securityContext, int? backlog, bool shared = false}) async {
     backlog ??= 0;
     HttpServer server = await (securityContext == null
         ? HttpServer.bind(address, port, backlog: backlog, shared: shared)
@@ -204,13 +205,13 @@ class VideoCacheServer {
     var onError = (e, s) {
       print('Proxy Server stopped with asynchronous error\n$e\n$s');
       try {
-        _client.close();
+        _client!.close();
       } catch (_) {}
     };
     var callback = () {
       server.listen((HttpRequest request) => handleRequest(request), onDone: () {
         try {
-          _client.close();
+          _client!.close();
         } catch (_) {}
       }, onError: onError);
     };
@@ -241,22 +242,22 @@ class VideoCacheServer {
   /// Gets a proxy url for [raw] which will be handled by the cache server.
   ///
   /// [extraQueries] will be appended to the generated url, note that query key starts and ends with `__` is preserved to carry metadata and will not be appended to the actual video url.
-  String getProxyUrl(String raw, [Map<String, String> extraQueries]) {
-    String _extraQueries;
-    if(extraQueries?.isNotEmpty == true) {
-      _extraQueries = '&' + extraQueries.keys.map((key) => '$key=${Uri.encodeComponent(extraQueries[key])}').join('&');
+  String getProxyUrl(String raw, [Map<String, String>? extraQueries]) {
+    String? _extraQueries;
+    if (extraQueries?.isNotEmpty == true) {
+      _extraQueries = '&' + extraQueries!.keys.map((key) => '$key=${Uri.encodeComponent(extraQueries[key]!)}').join('&');
     }
-    return 'http${securityContext == null ? "" : "s"}://${address.host}:$port/?__url__=${Uri.encodeComponent(raw)}${_extraQueries??""}';
+    return 'http${securityContext == null ? "" : "s"}://${address!.host}:$port/?__url__=${Uri.encodeComponent(raw)}${_extraQueries ?? ""}';
   }
 
   /// Pass through the request for fetching mp4 metadata, this is usually happened when the player detected that the metadata is at the end of the mp4 file.
-  static bool passThroughForMp4TrailingMetadataRequest(ProxyRequest serverRequest, CacheInfo cacheInfo) {
+  static bool passThroughForMp4TrailingMetadataRequest(ProxyRequest serverRequest, CacheInfo? cacheInfo) {
     RequestRange requestRange = RequestRange.parse(serverRequest.headers['range']);
     if (cacheInfo != null &&
         requestRange.specified &&
         (requestRange.end != null || cacheInfo.total != null) &&
         requestRange.begin != null &&
-        ((requestRange.end ?? cacheInfo.total) - requestRange.begin < 1024 && !cacheInfo.cached(requestRange))) {
+        ((requestRange.end ?? cacheInfo.total!) - requestRange.begin! < 1024 && !cacheInfo.cached(requestRange))) {
       print('request passed through');
       return true;
     }
@@ -264,7 +265,7 @@ class VideoCacheServer {
   }
 
   /// Intercept and proxy m3u8 content.
-  static Future<bool> handleM3u8(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer server, String owner) async {
+  static Future<bool> handleM3u8(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer server, String? owner) async {
     if (isM3u8(remoteResponse.headers['content-type']?.toLowerCase(), uri)) {
       // For a m3u8 request, download and change the URIs in it to proxied version
       String m3u8;
@@ -274,11 +275,11 @@ class VideoCacheServer {
       } else {
         m3u8 = await remoteResponse.stream.bytesToString();
       }
-      Map<String, String> ownerQuery = owner == null ? null : {'__owner__': owner};
+      Map<String, String>? ownerQuery = owner == null ? null : {'__owner__': owner};
       M3u8 _m3u8 = proxyM3u8Content(m3u8, (url) => server.getProxyUrl(url, ownerQuery), remoteResponse.requestUri);
 
       // print('-- M3U8:\n${_m3u8.proxied}');
-      List<int> bytes = utf8.encode(_m3u8.proxied);
+      List<int> bytes = utf8.encode(_m3u8.proxied!);
       response.contentLength = bytes.length;
       if (remoteResponse.statusCode == 206) {
         response.headers.set('content-range', 'bytes 0-${bytes.length - 1}/${bytes.length}');
@@ -293,36 +294,37 @@ class VideoCacheServer {
 
   /// The actual codes of doing proxy and caching work.
   Future<void> _proxyAndCache(ProxyRequest serverRequest, HttpResponse response) async {
-    String realUrl;
-    String cacheKey;
-    String owner;
+    String? realUrl;
+    String? cacheKey;
+    String? owner;
     List<String> extraParams = [];
     serverRequest.requestedUri.queryParameters.forEach((key, value) {
-      if(key == '__url__') {
+      if (key == '__url__') {
         realUrl = value;
         return;
       }
-      if(key == '__key__') {
+      if (key == '__key__') {
         cacheKey = key;
         return;
       }
-      if(key == '__owner__') {
+      if (key == '__owner__') {
         owner = value;
         return;
       }
-      if(key.startsWith('__') && key.endsWith('__')) {
+      if (key.startsWith('__') && key.endsWith('__')) {
         return;
       }
       extraParams.add('$key=${Uri.encodeComponent(value)}');
     });
     cacheKey ??= realUrl;
-    if(extraParams.isNotEmpty) {// ie: m3u8 encrypt queries
-      realUrl = appendQuery(realUrl, extraParams.join('&'));
+    if (extraParams.isNotEmpty) {
+      // ie: m3u8 encrypt queries
+      realUrl = appendQuery(realUrl!, extraParams.join('&'));
     }
 
-    CacheInfo cacheInfo = _caches[cacheKey];
-    if (passThrough != null && await passThrough(serverRequest, cacheInfo)) {
-      await _passThrough(realUrl, serverRequest, response);
+    CacheInfo? cacheInfo = _caches[cacheKey];
+    if (passThrough != null && await passThrough!(serverRequest, cacheInfo)) {
+      await _passThrough(realUrl!, serverRequest, response);
       return;
     }
 
@@ -334,7 +336,7 @@ class VideoCacheServer {
     if (cacheInfo != null && (cacheInfo.cached(requestRange))) {
       // cache exists and finished download, don't perform another request
       if (cacheInfo.headers != null) {
-        cacheInfo.headers.forEach((key, value) {
+        cacheInfo.headers!.forEach((key, value) {
           try {
             response.headers.set(key, value);
           } catch (e, s) {
@@ -346,29 +348,29 @@ class VideoCacheServer {
       if (requestRange.specified) {
         response.statusCode = 206;
         if (requestRange.begin == null) {
-          requestRange.suffixLengthToRange(cacheInfo.total);
+          requestRange.suffixLengthToRange(cacheInfo.total!);
         }
         if (requestRange.begin == 0) {
           if (requestRange.end == null) {
-            response.contentLength = cacheInfo.total;
+            response.contentLength = cacheInfo.total ?? -1;
           } else {
-            response.contentLength = requestRange.end + 1;
+            response.contentLength = requestRange.end! + 1;
           }
         } else {
           if (requestRange.end == null) {
-            response.contentLength = cacheInfo.total - requestRange.begin;
+            response.contentLength = cacheInfo.total! - requestRange.begin!;
           } else {
-            response.contentLength = requestRange.end - requestRange.begin + 1;
+            response.contentLength = requestRange.end! - requestRange.begin! + 1;
           }
         }
-        response.headers.set('content-range', 'bytes ${requestRange.begin}-${requestRange.begin + response.contentLength - 1}/${cacheInfo.total}');
+        response.headers.set('content-range', 'bytes ${requestRange.begin}-${requestRange.begin! + response.contentLength - 1}/${cacheInfo.total}');
         await response.addStream(cacheInfo.streamFromCache(
-          begin: requestRange.begin,
-          end: requestRange.end == null ? cacheInfo.total : requestRange.end + 1,
+          begin: requestRange.begin!,
+          end: requestRange.end == null ? cacheInfo.total : requestRange.end! + 1,
         ));
       } else {
         response.statusCode = 200;
-        response.contentLength = cacheInfo.total;
+        response.contentLength = cacheInfo.total ?? -1;
         response.headers.removeAll('content-range');
         await response.addStream(cacheInfo.streamFromCache(begin: 0, end: cacheInfo.total));
       }
@@ -389,33 +391,34 @@ class VideoCacheServer {
     }
 
     if (cacheInfo == null) {
-      cacheInfo = CacheInfo(url: realUrl, lazy: lazy, belongTo: owner)..current = 0;
-      _caches[cacheKey] = cacheInfo;
+      cacheInfo = CacheInfo(url: realUrl!, lazy: lazy, belongTo: owner)..current = 0;
+      _caches[cacheKey!] = cacheInfo;
     }
-    IOStreamedResponse clientResponse;
+    IOStreamedResponse? clientResponse;
     try {
-      Uri realUri = Uri.parse(realUrl);
+      Uri realUri = Uri.parse(realUrl!);
       http.Request clientRequest = http.Request(serverRequest.method, realUri);
       clientRequest.followRedirects = true;
       clientRequest.headers.addAll(serverRequest.headers);
       String host = realUri.host;
-      if(!(realUri.port == 80 && realUri.scheme == 'http' || realUri.port == 443 && realUri.scheme == 'https')) {
+      if (!(realUri.port == 80 && realUri.scheme == 'http' || realUri.port == 443 && realUri.scheme == 'https')) {
         host = '$host:${realUri.port}';
       }
       clientRequest.headers['host'] = host;
 
-      if(requestHeaderInterceptor != null) {
-        requestHeaderInterceptor(clientRequest.headers);
+      if (requestHeaderInterceptor != null) {
+        requestHeaderInterceptor!(clientRequest.headers);
       }
 
       List<int> bodyBytes = [];
       await serverRequest.read().forEach((element) => bodyBytes.addAll(element));
       clientRequest.bodyBytes = bodyBytes;
 
-      clientResponse = await _client.send(clientRequest);
+      clientResponse = await _client!.send(clientRequest);
       // print('====== Proxy Response[${requestRange.begin??0}-${requestRange.end}] ======');
       // print('StatusCode:${clientResponse.statusCode}');
       clientResponse.headers.forEach((key, value) {
+        // ignore: unnecessary_null_comparison
         if (value == null) return;
         try {
           response.headers.set(key, value);
@@ -430,6 +433,7 @@ class VideoCacheServer {
         response.statusCode = clientResponse.statusCode;
         response.contentLength = clientResponse.contentLength ?? -1;
         clientResponse.headers.forEach((key, value) {
+          // ignore: unnecessary_null_comparison
           if (value == null) return;
           try {
             response.headers.set(key, value);
@@ -456,19 +460,19 @@ class VideoCacheServer {
       response.statusCode = clientResponse.statusCode;
       response.contentLength = clientResponse.contentLength ?? -1;
 
-      if (postRemoteRequestHandler != null && await postRemoteRequestHandler(realUri, clientResponse, response, this, owner??cacheKey)) {
+      if (postRemoteRequestHandler != null && await postRemoteRequestHandler!(realUri, clientResponse, response, this, owner ?? cacheKey!)) {
         // don't hold cache info
         _caches.remove(cacheKey);
         return;
       }
 
-      int begin = requestRange.specified ? requestRange.begin : 0;
+      int begin = requestRange.specified ? requestRange.begin! : 0;
       await response.addStream(await cacheInfo.stream(
         begin: begin,
-        end: requestRange.specified ? (requestRange.end == null ? cacheInfo.total : requestRange.end + 1) : cacheInfo.total,
+        end: requestRange.specified ? (requestRange.end == null ? cacheInfo.total : requestRange.end! + 1) : cacheInfo.total,
         createFragmentFile: () => File('$_cacheDir${cacheFileIndex++}'),
-        clientResponse: (!responseRange.specified || (responseRange.begin != null && responseRange.begin <= begin)) ? clientResponse : null,
-        client: _client,
+        clientResponse: (!responseRange.specified || (responseRange.begin != null && responseRange.begin! <= begin)) ? clientResponse : null,
+        client: _client!,
         clientRequest: clientRequest,
       ));
       await response.flush();
@@ -507,10 +511,11 @@ class VideoCacheServer {
     clientRequest.followRedirects = true;
     clientRequest.headers.addAll(serverRequest.headers);
     clientRequest.headers['host'] = realUri.host;
-    IOStreamedResponse clientResponse = await _client.send(clientRequest);
+    IOStreamedResponse clientResponse = await _client!.send(clientRequest);
     response.statusCode = clientResponse.statusCode;
     response.contentLength = clientResponse.contentLength ?? -1;
     clientResponse.headers.forEach((key, value) {
+      // ignore: unnecessary_null_comparison
       if (value == null) return;
       try {
         response.headers.set(key, value);

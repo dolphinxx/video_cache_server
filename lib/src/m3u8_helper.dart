@@ -4,20 +4,20 @@
 const String MIME_TYPE_M3U8_1 = 'x-mpegurl';
 const String MIME_TYPE_M3U8_2 = 'vnd.apple.mpegurl';
 
-bool isM3u8MimeType(String mimeType) {
+bool isM3u8MimeType(String? mimeType) {
   return mimeType?.contains(MIME_TYPE_M3U8_1) == true || mimeType?.contains(MIME_TYPE_M3U8_2) == true;
 }
 
 final RegExp _tagURIRegex = RegExp('URI="([^"]+)"');
 
 /// Determines if it is a m3u8 resource.
-bool isM3u8(String contentType, Uri uri) {
-  return isM3u8MimeType(contentType?.toLowerCase()) || uri.path.toLowerCase().endsWith('.m3u8');
+bool isM3u8(String? contentType, Uri? uri) {
+  return isM3u8MimeType(contentType?.toLowerCase()) || (uri?.path.toLowerCase().endsWith('.m3u8') ?? false);
 }
 
 class M3u8 {
   final String raw;
-  String proxied;
+  String? proxied;
 
   /// true if the m3u8 file contains a decryption tag(`EXT-X-KEY`, `EXT-X-SESSION-KEY`)
   bool encrypted = false;
@@ -45,7 +45,7 @@ class M3u8 {
 ///
 M3u8 proxyM3u8Content(String content, String Function(String raw) proxy, Uri uri) {
   bool isLive = !content.contains('#EXT-X-ENDLIST');
-  String tagName;
+  String? tagName;
   M3u8 m3u8 = M3u8(content);
   String proxied = content.split('\n').map((line) {
     line = line.trim();
@@ -70,7 +70,7 @@ M3u8 proxyM3u8Content(String content, String Function(String raw) proxy, Uri uri
         // m3u8 links
         // to absolute and proxy the URI
         return line.replaceFirstMapped(_tagURIRegex, (match) {
-          String playlist = uri.resolve(match.group(1)).toString();
+          String playlist = uri.resolve(match.group(1)!).toString();
           m3u8.playlists.add(playlist);
           return 'URI="${proxy(playlist)}"';
         });
@@ -78,7 +78,7 @@ M3u8 proxyM3u8Content(String content, String Function(String raw) proxy, Uri uri
       if (tagName == '#EXT-X-KEY' || tagName == '#EXT-X-SESSION-KEY' || tagName == '#EXT-X-SESSION-DATA' || tagName == '#EXT-X-MAP') {
         // to absolute the URI
         return line.replaceFirstMapped(_tagURIRegex, (match) {
-          return 'URI="${uri.resolve(match.group(1)).toString()}"';
+          return 'URI="${uri.resolve(match.group(1)!).toString()}"';
         });
       }
       return line;

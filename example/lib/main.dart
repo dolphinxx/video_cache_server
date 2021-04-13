@@ -70,13 +70,13 @@ class _MyAppState extends State<MyApp> {
                     color: Theme.of(context).cardColor,
                     child: Row(
                       children: [
-                        Expanded(child: Text(item['name'])),
+                        Expanded(child: Text(item['name'] as String)),
                         Container(
                           child: IconButton(
                             icon: Icon(Icons.play_arrow_sharp),
                             onPressed: () {
                               Navigator.of(context)
-                                  .push(PageRouteBuilder(pageBuilder: (context, animation, nextAnimation) => PlayerWidget(item['name'], item['url'])));
+                                  .push(PageRouteBuilder(pageBuilder: (context, animation, nextAnimation) => PlayerWidget(item['name'] as String, item['url'] as String)));
                             },
                           ),
                         ),

@@ -28,16 +28,17 @@ typedef Abort = void Function();
 /// the headers have been received.
 class IOStreamedResponse extends StreamedResponse {
   final HttpClientResponse _inner;
-  List<dynamic> _redirects;
+  List<dynamic>? _redirects;
 
   List<dynamic> get redirects {
     if (_redirects != null) {
-      return _redirects;
+      return _redirects!;
     }
+    // ignore: unnecessary_null_comparison
     if (_inner.redirects == null) {
       _redirects = [];
     } else {
-      Uri u = request.url;
+      Uri u = request!.url;
       _redirects = _inner.redirects.map((_) {
         Uri _u = _.location;
         if (!_u.isAbsolute) {
@@ -47,13 +48,13 @@ class IOStreamedResponse extends StreamedResponse {
         return {'statusCode': _.statusCode, 'method': _.method, 'location': _u};
       }).toList();
     }
-    return _redirects;
+    return _redirects!;
   }
 
-  Uri get requestUri => redirects?.isNotEmpty == true ? redirects.last['location'] : request.url;
+  Uri get requestUri => redirects.isNotEmpty == true ? redirects.last['location'] as Uri : request!.url;
 
   /// This Function transparently call [HttpClientRequest.abort]
-  final Abort abort;
+  final Abort? abort;
 
   /// Creates a new streaming response.
   ///
@@ -61,15 +62,15 @@ class IOStreamedResponse extends StreamedResponse {
   IOStreamedResponse(
     Stream<List<int>> stream,
     int statusCode, {
-    int contentLength,
-    BaseRequest request,
+    int? contentLength,
+    BaseRequest? request,
     Map<String, String> headers = const {},
     bool isRedirect = false,
     bool persistentConnection = true,
-    String reasonPhrase,
+    String? reasonPhrase,
     this.abort,
-    HttpClientResponse inner,
-  })  : _inner = inner,
+    required HttpClientResponse inner,
+  })   : _inner = inner,
         super(
           stream,
           statusCode,

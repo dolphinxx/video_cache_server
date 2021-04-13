@@ -2,15 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'dart:async';
 
+import 'package:pedantic/pedantic.dart';
+
 void main() {
   test('Error in onData - asFuture', () async {
-    // the error thrown in onData can't be caught when using asFuture.
     Stream stream = Stream.periodic(Duration(milliseconds: 500), (c) => c);
-    StreamSubscription subscription;
+    late StreamSubscription subscription;
     try {
       subscription = stream.listen((event) {
         print('onData - $event');
-        if (event > 4) {
+        if (event as int > 4) {
           throw 'Boom!';
         }
       }, onError: (e, s) => print('onError - $e'));
@@ -18,26 +19,26 @@ void main() {
     } catch (e, s) {
       print('caughtError - $e\n$s');
     }
-    subscription.cancel();
+    unawaited(subscription.cancel());
     print('done.');
-  });
+  }, skip: "the error thrown in onData can't be caught when using asFuture.");
   test('Error in onData - Completer', () async {
     Stream stream = Stream.periodic(Duration(milliseconds: 500), (c) => c);
-    StreamSubscription subscription;
+    late StreamSubscription subscription;
     Completer completer = Completer();
     try {
       subscription = stream.listen(
         (event) {
           try {
             print('onData - $event');
-            if (event > 4) {
+            if (event as int > 4) {
               throw 'Boom!';
             }
           } catch (e, s) {
             completer.completeError(e, s);
           }
         },
-        onError: (e, s) {
+        onError: (Object e, StackTrace s) {
           print('onError - $e');
           completer.completeError(e, s);
         },
@@ -49,11 +50,11 @@ void main() {
     } catch (e, s) {
       print('caughtError - $e\n$s');
     }
-    subscription.cancel();
+    unawaited(subscription.cancel());
     print('done.');
   });
   test('controller onCancel', () async {
-    StreamController controller;
+    late StreamController controller;
     controller = StreamController(onListen: () {
       int i = 0;
       Timer.periodic(Duration(milliseconds: 100), (timer) {
@@ -83,12 +84,12 @@ void main() {
     print('cancelled after read.');
     await Future.delayed(Duration(seconds: 3));
     print('before close. isClosed:${controller.isClosed}');
-    controller.close();
+    unawaited(controller.close());
     print('after close. isClosed:${controller.isClosed}');
     await Future.delayed(Duration(seconds: 10));
   });
   test('controller onError', () async {
-    StreamController controller;
+    late StreamController controller;
     controller = StreamController(onListen: () {
       int i = 0;
       Timer.periodic(Duration(milliseconds: 100), (timer) {
@@ -121,22 +122,22 @@ void main() {
     }
     print('cancelled after read.');
     print('before close. isClosed:${controller.isClosed}');
-    controller.close();
+    unawaited(controller.close());
     print('after close. isClosed:${controller.isClosed}');
     await Future.delayed(Duration(seconds: 10));
     print('isClosed: ${controller.isClosed}');
   });
   test('controller close', () async {
-    StreamController controller;
+    late StreamController controller;
     controller = StreamController(onListen: () async {
       await Future.delayed(Duration(seconds: 1));
       controller.add(1);
       await Future.delayed(Duration(seconds: 1));
       controller.add(2);
       await Future.delayed(Duration(seconds: 1));
-      controller.close();
+      unawaited(controller.close());
       await Future.delayed(Duration(seconds: 1));
-      controller.close();
+      unawaited(controller.close());
     }, onCancel: () async {
       print('onCancel start... isClosed:${controller.isClosed}');
       await Future.delayed(Duration(seconds: 3));
@@ -149,7 +150,7 @@ void main() {
     }
     print('cancelled after read.');
     print('before close. isClosed:${controller.isClosed}');
-    controller.close();
+    unawaited(controller.close());
     print('after close. isClosed:${controller.isClosed}');
     await Future.delayed(Duration(seconds: 10));
     print('isClosed: ${controller.isClosed}');

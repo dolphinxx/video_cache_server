@@ -9,32 +9,33 @@ Future<HttpServer> serve(dynamic file) async {
     0,
   );
   server.listen((HttpRequest request) async {
-    print('${request.method.toUpperCase()} ${request.uri}');
-    print('Headers:');
-    request.headers.forEach((name, values) {
-      print('$name=${values.join(',')}');
-    });
+    // print('${request.method.toUpperCase()} ${request.uri}');
+    // print('Headers:');
+    // request.headers.forEach((name, values) {
+    //   print('$name=${values.join(',')}');
+    // });
+    print('request range: ${request.headers['range']}');
     HttpResponse response = request.response;
     Stream<List<int>> stream;
     try {
       response.headers.set('content-type', 'application/octet-stream');
       response.statusCode = 200;
-      if (file is String && (file.startsWith('http://') || file.startsWith('https://'))) {
-        http.Request _request = http.Request('GET', Uri.parse(file));
+      if (file is String && ((file as String).startsWith('http://') || (file as String).startsWith('https://'))) {
+        http.Request _request = http.Request('GET', Uri.parse(file as String));
         http.StreamedResponse _response = await http.Client().send(_request);
-        response.contentLength = _response.contentLength;
+        response.contentLength = _response.contentLength??-1;
         stream = _response.stream;
       } else {
         if (file is! File) {
-          file = File(file);
+          file = File(file as String);
         }
         response.contentLength = (file as File).lengthSync();
-        stream = file.openRead();
+        stream = (file as File).openRead();
       }
       if (request.headers['range'] != null) {
-        Match matcher = RegExp('bytes=(\\d+)-(\\d+)?').firstMatch(request.headers.value('range'));
-        int begin = int.parse(matcher.group(1));
-        int end = matcher.group(2) != null ? int.parse(matcher.group(2)) : null;
+        Match matcher = RegExp('bytes=(\\d+)-(\\d+)?').firstMatch(request.headers.value('range')!)!;
+        int begin = int.parse(matcher.group(1)!);
+        int? end = matcher.group(2) != null ? int.parse(matcher.group(2)!) : null;
         stream = ByteRangeStream.range(stream, begin: begin, end: end == null ? null : end + 1);
         end = end ?? (response.contentLength - 1);
         response.statusCode = 206;

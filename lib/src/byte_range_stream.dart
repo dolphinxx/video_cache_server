@@ -12,16 +12,16 @@ class ByteRangeStream {
   /// The [begin] of the range is inclusive and default to 0 which will start at the beginning of the source stream.
   ///
   /// The [end] of the stream is exclusive, and if a null value is provided, the taking will walk forward until reaches the end of the source or when the subscription is cancelled.
-  static Stream<List<int>> range(Stream<List<int>> source, {int begin = 0, int end}) {
+  static Stream<List<int>> range(Stream<List<int>> source, {int begin = 0, int? end}) {
     StreamController<List<int>> controller = StreamController();
-    StreamSubscription<List<int>> subscription;
+    late StreamSubscription<List<int>> subscription;
     bool passThrough = begin == 0 && end == null;
     int walked = 0;
     bool finished = false;
     int transferred = 0;
-    int expected = end == null ? null : end - begin;
+    int? expected = end == null ? null : end - begin;
 
-    List<int> _transformData(List<int> data) {
+    List<int>? _transformData(List<int> data) {
       if (passThrough) {
         return data;
       }
@@ -57,7 +57,7 @@ class ByteRangeStream {
         if (finished) {
           return;
         }
-        List<int> targetData = _transformData(event);
+        List<int>? targetData = _transformData(event);
         if (targetData == null) {
           return;
         }
@@ -72,7 +72,7 @@ class ByteRangeStream {
       }, onDone: () {
         // print('ByteRangeStream transferred:$transferred');
         controller.close();
-      }, onError: (e, s) {
+      }, onError: (Object e, StackTrace s) {
         // print('ByteRangeStream transferred:$transferred');
         controller.addError(e, s);
       });

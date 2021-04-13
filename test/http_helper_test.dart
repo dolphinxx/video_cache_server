@@ -3,7 +3,7 @@ import 'package:video_cache_server/src/http_helper.dart';
 
 void main() {
   group('RequestRange', () {
-    var _test = (String value, RequestRange expected) {
+    var _test = (String? value, RequestRange expected) {
       RequestRange actual = RequestRange.parse(value);
       expect(actual.specified, expected.specified, reason: 'specified should be equal.');
       expect(actual.begin, expected.begin, reason: 'begin should be equal.');
@@ -33,7 +33,7 @@ void main() {
       _test(value, expected);
     });
     test('null value', () async {
-      String value;
+      String? value;
       RequestRange expected = RequestRange.unspecified();
       _test(value, expected);
     });
@@ -57,7 +57,7 @@ void main() {
     });
   });
   group('ResponseRange', () {
-    var _test = (String value, ResponseRange expected) {
+    var _test = (String? value, ResponseRange expected) {
       ResponseRange actual = ResponseRange.parse(value);
       expect(actual.specified, expected.specified, reason: 'specified should be equal.');
       expect(actual.begin, expected.begin, reason: 'begin should be equal.');
@@ -87,7 +87,7 @@ void main() {
       _test(value, expected);
     });
     test('null value', () async {
-      String value;
+      String? value;
       ResponseRange expected = ResponseRange.unspecified();
       _test(value, expected);
     });
@@ -108,7 +108,7 @@ void main() {
     });
   });
   group('appendQuery', () {
-    var _test = (url, queries, expected) {
+    var _test = (String url, String queries, expected) {
       expect(appendQuery(url, queries), expected);
     };
     test('+anchor +queries', () {
