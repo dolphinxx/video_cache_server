@@ -55,15 +55,15 @@ class _Store {
   final String indexUrl;
   final VideoCacheServer cacheServer;
   int lastPaintTimestamp = 0;
-  int total;
-  int received;
-  List<List<int>> ranges;
+  int? total;
+  int received = 0;
+  List<List<int>>? ranges;
   bool readyToPaint = false;
 
   _Store(this.indexUrl, this.cacheServer);
 
   Future<void> prepareCacheData() async {
-    CacheInfo cacheInfo = cacheServer.caches[indexUrl];
+    CacheInfo? cacheInfo = cacheServer.caches[indexUrl];
     if (cacheInfo != null) {
       // a single file cache
       int total = cacheInfo.total ?? 0;
@@ -97,7 +97,7 @@ class _Store {
     }
   }
 
-  bool equals(List<List<int>> a, List<List<int>> b) {
+  bool equals(List<List<int>>? a, List<List<int>>? b) {
     if (a == null || b == null) {
       return false;
     }
@@ -117,7 +117,7 @@ class CachePreviewPainter extends CustomPainter {
   final _Store store;
   final Paint _paint = Paint();
   static Color backgroundColor = Colors.blueGrey;
-  static Color cacheColor = Colors.blue[700];
+  static Color cacheColor = Colors.blue[700]!;
 
   CachePreviewPainter(this.store);
 
@@ -131,18 +131,18 @@ class CachePreviewPainter extends CustomPainter {
     }
     _paint.color = cacheColor;
     if (store.ranges != null) {
-      double ratio = size.width / store.total;
-      store.ranges.forEach((element) {
+      double ratio = size.width / store.total!;
+      store.ranges!.forEach((element) {
         canvas.drawRect(Rect.fromLTRB(element[0] * ratio, 0, element[1] * ratio, size.height), _paint);
       });
       ui.ParagraphBuilder paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(textAlign: TextAlign.center, fontSize: 16.0));
-      paragraphBuilder.addText('Cached:${store.received ~/ 1024}K/${store.total ~/ 1024}K');
+      paragraphBuilder.addText('Cached:${store.received ~/ 1024}K/${store.total! ~/ 1024}K');
       ui.Paragraph paragraph = paragraphBuilder.build();
       paragraph.layout(ui.ParagraphConstraints(width: size.width));
       canvas.drawParagraph(paragraph, Offset((size.width - paragraph.width) / 2, (size.height - paragraph.height) / 2));
     } else {
       ui.ParagraphBuilder paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(textAlign: TextAlign.center, fontSize: 16.0));
-      paragraphBuilder.addText('Cached:${store.total ~/ 1024}K');
+      paragraphBuilder.addText('Cached:${store.total! ~/ 1024}K');
       ui.Paragraph paragraph = paragraphBuilder.build();
       paragraph.layout(ui.ParagraphConstraints(width: size.width));
       canvas.drawParagraph(paragraph, Offset((size.width - paragraph.width) / 2, (size.height - paragraph.height) / 2));

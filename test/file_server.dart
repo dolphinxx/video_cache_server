@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'dart:async';
+import 'dart:developer' show log;
 import 'package:video_cache_server/video_cache_server.dart';
 
 Future<HttpServer> serve(dynamic file) async {
@@ -8,49 +9,49 @@ Future<HttpServer> serve(dynamic file) async {
     '127.0.0.1',
     0,
   );
-  server.listen((HttpRequest request) async {
-    // print('${request.method.toUpperCase()} ${request.uri}');
+  server.listen((HttpRequest httpRequest) async {
+    // print('${httpRequest.method.toUpperCase()} ${httpRequest.uri}');
     // print('Headers:');
-    // request.headers.forEach((name, values) {
+    // httpRequest.headers.forEach((name, values) {
     //   print('$name=${values.join(',')}');
     // });
-    print('request range: ${request.headers['range']}');
-    HttpResponse response = request.response;
+    log('request range: ${httpRequest.headers['range']}');
+    HttpResponse httpResponse = httpRequest.response;
     Stream<List<int>> stream;
     try {
-      response.headers.set('content-type', 'application/octet-stream');
-      response.statusCode = 200;
+      httpResponse.headers.set('content-type', 'application/octet-stream');
+      httpResponse.statusCode = 200;
       if (file is String && ((file as String).startsWith('http://') || (file as String).startsWith('https://'))) {
-        http.Request _request = http.Request('GET', Uri.parse(file as String));
-        http.StreamedResponse _response = await http.Client().send(_request);
-        response.contentLength = _response.contentLength??-1;
-        stream = _response.stream;
+        http.Request request = http.Request('GET', Uri.parse(file as String));
+        http.StreamedResponse response = await http.Client().send(request);
+        httpResponse.contentLength = response.contentLength??-1;
+        stream = response.stream;
       } else {
         if (file is! File) {
           file = File(file as String);
         }
-        response.contentLength = (file as File).lengthSync();
+        httpResponse.contentLength = (file as File).lengthSync();
         stream = (file as File).openRead();
       }
-      if (request.headers['range'] != null) {
-        Match matcher = RegExp('bytes=(\\d+)-(\\d+)?').firstMatch(request.headers.value('range')!)!;
+      if (httpRequest.headers['range'] != null) {
+        Match matcher = RegExp('bytes=(\\d+)-(\\d+)?').firstMatch(httpRequest.headers.value('range')!)!;
         int begin = int.parse(matcher.group(1)!);
         int? end = matcher.group(2) != null ? int.parse(matcher.group(2)!) : null;
         stream = ByteRangeStream.range(stream, begin: begin, end: end == null ? null : end + 1);
-        end = end ?? (response.contentLength - 1);
-        response.statusCode = 206;
-        response.headers.set('content-range', 'bytes $begin-$end/${response.contentLength}');
-        response.contentLength = end - begin + 1;
+        end = end ?? (httpResponse.contentLength - 1);
+        httpResponse.statusCode = 206;
+        httpResponse.headers.set('content-range', 'bytes $begin-$end/${httpResponse.contentLength}');
+        httpResponse.contentLength = end - begin + 1;
       }
-      await response.addStream(stream);
-      await response.flush();
+      await httpResponse.addStream(stream);
+      await httpResponse.flush();
     } catch (e, s) {
-      print('$e\n$s');
+      log('$e\n$s');
     } finally {
       try {
-        await response.close();
+        await httpResponse.close();
       } catch (e, s) {
-        print('Exception when close response.\n$e\n$s');
+        log('Exception when close response.\n$e\n$s');
       }
     }
   });

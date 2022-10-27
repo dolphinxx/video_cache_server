@@ -40,12 +40,12 @@ class IOStreamedResponse extends StreamedResponse {
     } else {
       Uri u = request!.url;
       _redirects = _inner.redirects.map((_) {
-        Uri _u = _.location;
-        if (!_u.isAbsolute) {
-          _u = u.resolveUri(_u);
+        Uri location = _.location;
+        if (!location.isAbsolute) {
+          location = u.resolveUri(location);
         }
-        u = _u;
-        return {'statusCode': _.statusCode, 'method': _.method, 'location': _u};
+        u = location;
+        return {'statusCode': _.statusCode, 'method': _.method, 'location': location};
       }).toList();
     }
     return _redirects!;

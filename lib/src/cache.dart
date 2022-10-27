@@ -4,15 +4,24 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:developer' show log;
 
-import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
-import 'package:pedantic/pedantic.dart';
 
 import './byte_range_stream.dart';
 import './http_helper.dart';
 import './io_client.dart';
 import './io_streamed_response.dart';
+
+extension IterableExtension<T> on Iterable<T> {
+  /// The first element satisfying [test], or `null` if there are none.
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
 
 typedef SubscriptionSetter = void Function(StreamSubscription<List<int>> subscription);
 typedef DataFetcher = Future<CacheFragment> Function(int begin, int end, StreamController<List<int>> receiver);
@@ -86,9 +95,9 @@ class CacheInfo {
             continue;
           }
           Completer subscriptionCompleter = Completer();
-          int _relativeBegin = $begin - fragment.begin;
-          int _relativeEnd = end == null ? fragment.received : math.min(end - fragment.begin, fragment.received);
-          $subscription = fragment.file?.openRead(_relativeBegin, _relativeEnd).listen(
+          int relativeBegin = $begin - fragment.begin;
+          int relativeEnd = end == null ? fragment.received : math.min(end - fragment.begin, fragment.received);
+          $subscription = fragment.file?.openRead(relativeBegin, relativeEnd).listen(
             (event) {
               try {
                 if (controller.isClosed) {
@@ -120,7 +129,7 @@ class CacheInfo {
               await $subscription?.cancel();
             } catch (_) {}
           }
-          $begin += _relativeEnd - _relativeBegin;
+          $begin += relativeEnd - relativeBegin;
           // _written += _relativeEnd - _relativeBegin;
           if (end != null && $begin >= end) {
             break;
@@ -241,70 +250,70 @@ class CacheInfo {
       // fetch from remote
       CacheFragment? nextFragment = fragments.firstWhereOrNull((element) => element.begin > begin);
 
-      int? _end = end == null ? nextFragment?.begin : (nextFragment != null ? math.min(nextFragment.begin, end) : end);
+      int? effectiveEnd = end == null ? nextFragment?.begin : (nextFragment != null ? math.min(nextFragment.begin, end) : end);
 
-      // print('Reading from remote - [$begin-$_end, url:$url]');
+      // print('Reading from remote - [$begin-$effectiveEnd, url:$url]');
       File cacheFile = createFragmentFile();
       cacheFile.parent.createSync(recursive: true);
-      fragment = CacheFragment(begin: begin, end: begin, file: cacheFile, expected: _end != null ? _end - begin : -1);
+      fragment = CacheFragment(begin: begin, end: begin, file: cacheFile, expected: effectiveEnd != null ? effectiveEnd - begin : -1);
       fragments.add(fragment);
       IOSink sink = cacheFile.openWrite(mode: FileMode.write);
       try {
-        http.StreamedResponse _clientResponse;
+        http.StreamedResponse effectiveResponse;
         // the original response is not read, and response range is not specified(meaning full data), or its range includes fetcher's range
         if (previousResponse != null) {
-          _clientResponse = previousResponse;
+          effectiveResponse = previousResponse;
           previousResponse = null;
         } else {
-          http.Request _request = cloneRequest(clientRequest);
-          _request.headers['range'] = 'bytes=$begin-${_end == null ? "" : _end - 1}';
+          http.Request clonedRequest = cloneRequest(clientRequest);
+          clonedRequest.headers['range'] = 'bytes=$begin-${effectiveEnd == null ? "" : effectiveEnd - 1}';
           // print('====== Proxy Fetcher Request ======');
           // print('Url:$realUrl\nMethod:${_request.method}');
           // _request.headers.forEach((key, value) => print('Header:$key=$value'));
           // print('===========================');
-          _clientResponse = await client.send(_request);
+          effectiveResponse = await client.send(clonedRequest);
           // print('====== Proxy Fetcher Response ======');
           // _clientResponse.headers.forEach((key, value) {
           //   print('Header:$key=$value');
           // });
           // print('============================');
         }
-        Stream<List<int>> stream = _clientResponse.stream;
-        ResponseRange _range = ResponseRange.parse(_clientResponse.headers['content-range']);
-        if (_range.specified) {
+        Stream<List<int>> stream = effectiveResponse.stream;
+        ResponseRange responseRange = ResponseRange.parse(effectiveResponse.headers['content-range']);
+        if (responseRange.specified) {
           // range begin relative to the ranged response stream
-          int _$begin;
-          if (_range.begin != null) {
-            _$begin = begin - _range.begin!;
+          int effectiveBegin;
+          if (responseRange.begin != null) {
+            effectiveBegin = begin - responseRange.begin!;
           } else {
-            _$begin = begin;
+            effectiveBegin = begin;
           }
-          stream = ByteRangeStream.range(stream, begin: _$begin, end: fragment.expected != -1 ? _$begin + fragment.expected : null);
-        } else if (begin > 0 || _end != null) {
+          stream = ByteRangeStream.range(stream, begin: effectiveBegin, end: fragment.expected != -1 ? effectiveBegin + fragment.expected : null);
+        } else if (begin > 0 || effectiveEnd != null) {
           stream = ByteRangeStream.range(stream, begin: begin, end: begin + fragment.expected);
         }
         int transferred = 0;
 
-        Completer _subscriptionCompleter = Completer();
+        Completer subscriptionCompleter = Completer();
         // using subscription to control stream's pause/resume
         StreamSubscription<List<int>> subscription = stream.listen(
           (element) {
             try {
               if (controller.isClosed) {
-                _subscriptionCompleter.complete();
+                subscriptionCompleter.complete();
                 return;
               }
               transferred += element.length;
               if (fragment!.expected != -1 && transferred > fragment.expected) {
-                print('fetcher data[$begin-$end] exceeded, expected:${fragment.expected}, transferred:$transferred');
+                log('fetcher data[$begin-$end] exceeded, expected:${fragment.expected}, transferred:$transferred');
               }
               controller.add(element);
               sink.add(element);
               current = current! + element.length;
               fragment.end += element.length;
             } catch (e, s) {
-              if (!_subscriptionCompleter.isCompleted) {
-                _subscriptionCompleter.completeError(e, s);
+              if (!subscriptionCompleter.isCompleted) {
+                subscriptionCompleter.completeError(e, s);
               }
             }
           },
@@ -314,19 +323,19 @@ class CacheInfo {
               // Therefore the received data length is considered as the content-length.
               total = transferred;
             }
-            if (!_subscriptionCompleter.isCompleted) {
-              _subscriptionCompleter.complete();
+            if (!subscriptionCompleter.isCompleted) {
+              subscriptionCompleter.complete();
             }
           },
           onError: (Object e, StackTrace s) {
-            if (!_subscriptionCompleter.isCompleted) {
-              _subscriptionCompleter.completeError(e, s);
+            if (!subscriptionCompleter.isCompleted) {
+              subscriptionCompleter.completeError(e, s);
             }
           },
         );
         this.subscription = subscription;
         try {
-          await _subscriptionCompleter.future;
+          await subscriptionCompleter.future;
         } finally {
           try {
             // suppress cancel_subscriptions warning
@@ -349,40 +358,40 @@ class CacheInfo {
       }
     } else {
       // read from cache file
-      int __end = end == null ? fragment.end : math.min(end, fragment.end);
+      int effectiveEnd = end == null ? fragment.end : math.min(end, fragment.end);
       // print('Reading from cache - [$begin-$__end, url:$url]');
-      Stream<List<int>> stream = fragment.file!.openRead(begin - fragment.begin, __end - fragment.begin);
+      Stream<List<int>> stream = fragment.file!.openRead(begin - fragment.begin, effectiveEnd - fragment.begin);
 
-      Completer _subscriptionCompleter = Completer();
+      Completer subscriptionCompleter = Completer();
       // using subscription to control stream's pause/resume
       StreamSubscription subscription = stream.listen(
         (event) {
           try {
             if (controller.isClosed) {
-              _subscriptionCompleter.complete();
+              subscriptionCompleter.complete();
               return;
             }
             controller.add(event);
           } catch (e, s) {
-            if (!_subscriptionCompleter.isCompleted) {
-              _subscriptionCompleter.completeError(e, s);
+            if (!subscriptionCompleter.isCompleted) {
+              subscriptionCompleter.completeError(e, s);
             }
           }
         },
         onDone: () {
-          if (!_subscriptionCompleter.isCompleted) {
-            _subscriptionCompleter.complete();
+          if (!subscriptionCompleter.isCompleted) {
+            subscriptionCompleter.complete();
           }
         },
         onError: (Object e, StackTrace s) {
-          if (!_subscriptionCompleter.isCompleted) {
-            _subscriptionCompleter.completeError(e, s);
+          if (!subscriptionCompleter.isCompleted) {
+            subscriptionCompleter.completeError(e, s);
           }
         },
       );
       this.subscription = subscription;
       try {
-        await _subscriptionCompleter.future;
+        await subscriptionCompleter.future;
       } finally {
         try {
           // suppress cancel_subscriptions warning

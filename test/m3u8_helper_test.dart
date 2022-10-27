@@ -5,14 +5,14 @@ import 'dart:io';
 void main() {
   group('proxyM3u8Content', () {
     String testDataDir = 'test_resources/m3u8/';
-    var loadData = (String name) => File('$testDataDir$name.txt').readAsStringSync();
-    var proxy = (String raw) => 'http://127.0.0.1:8888/?url=${Uri.encodeComponent(raw)}';
-    var testM3u8 = (String name, List<String> expectedPlaylists) {
+    loadData(String name) => File('$testDataDir$name.txt').readAsStringSync();
+    proxy(String raw) => 'http://127.0.0.1:8888/?url=${Uri.encodeComponent(raw)}';
+    testM3u8(String name, List<String> expectedPlaylists) {
       Uri uri = Uri.parse('https://test.com/m3u8/$name.m3u8');
       M3u8 actual = proxyM3u8Content(loadData(name), proxy, uri);
       expect(actual.proxied, File('$testDataDir${name}_expected.txt').readAsStringSync().replaceAll('\r', ''), reason: 'test $name should match.');
       expect(actual.playlists, expectedPlaylists);
-    };
+    }
     test('living', () async {
       String name = 'living';
       testM3u8(
@@ -62,36 +62,36 @@ void main() {
     });
   });
   group('isM3u8', () {
-    var _test = (String contentType, Uri? uri, bool expected) {
+    runTest(String contentType, Uri? uri, bool expected) {
       bool actual = isM3u8(contentType, uri);
       expect(actual, expected);
-    };
+    }
     test('content-type: application/x-mpegURL', () async {
-      _test('application/x-mpegURL', null, true);
+      runTest('application/x-mpegURL', null, true);
     });
     test('content-type: application/x-mpegurl', () async {
-      _test('application/x-mpegURL', null, true);
+      runTest('application/x-mpegURL', null, true);
     });
     test('content-type: vnd.apple.mpegURL', () async {
-      _test('application/x-mpegURL', null, true);
+      runTest('application/x-mpegURL', null, true);
     });
     test('content-type: vnd.apple.mpegurl', () async {
-      _test('application/x-mpegURL', null, true);
+      runTest('application/x-mpegURL', null, true);
     });
     test('extension: .m3u8 without queries', () async {
-      _test('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8'), true);
+      runTest('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8'), true);
     });
     test('extension: .m3u8 with queries', () async {
-      _test('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8?dev=true'), true);
+      runTest('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8?dev=true'), true);
     });
     test('extension: .M3U8', () async {
-      _test('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.M3U8'), true);
+      runTest('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.M3U8'), true);
     });
     test('content-type: illegal', () async {
-      _test('application/mpegURL', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.M3U'), false);
+      runTest('application/mpegURL', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.M3U'), false);
     });
     test('uri contains .m3u8 but is not the extension', () async {
-      _test('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8/'), false);
+      runTest('text/plain', Uri.parse('http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8/'), false);
     });
   });
 }

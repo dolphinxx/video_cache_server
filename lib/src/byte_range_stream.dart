@@ -2,8 +2,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'dart:async';
-
-import 'package:pedantic/pedantic.dart';
+import 'dart:developer' show log;
 
 /// Take a range of bytes from a `Stream<List<int>>`.
 class ByteRangeStream {
@@ -21,13 +20,13 @@ class ByteRangeStream {
     int transferred = 0;
     int? expected = end == null ? null : end - begin;
 
-    List<int>? _transformData(List<int> data) {
+    List<int>? transformData(List<int> data) {
       if (passThrough) {
         return data;
       }
       int blockBegin = walked;
       int blockEnd = walked + data.length;
-      int _walked = walked;
+      int lastWalked = walked;
       walked += data.length;
       if (blockEnd <= begin) {
         // still far away
@@ -43,12 +42,12 @@ class ByteRangeStream {
         blockBegin = begin;
       }
       if (end == null) {
-        return data.sublist(blockBegin - _walked);
+        return data.sublist(blockBegin - lastWalked);
       }
       if (blockEnd > end) {
         blockEnd = end;
       }
-      return blockEnd - blockBegin == data.length ? data : data.sublist(blockBegin - _walked, blockEnd - _walked);
+      return blockEnd - blockBegin == data.length ? data : data.sublist(blockBegin - lastWalked, blockEnd - lastWalked);
     }
 
     controller.onListen = () {
@@ -57,7 +56,7 @@ class ByteRangeStream {
         if (finished) {
           return;
         }
-        List<int>? targetData = _transformData(event);
+        List<int>? targetData = transformData(event);
         if (targetData == null) {
           return;
         }
@@ -67,7 +66,7 @@ class ByteRangeStream {
         controller.add(targetData);
         transferred += targetData.length;
         if (expected != null && transferred > expected) {
-          print('ByteRangeStream transfer exceeded, expected:$expected, transferred:$transferred');
+          log('ByteRangeStream transfer exceeded, expected:$expected, transferred:$transferred');
         }
       }, onDone: () {
         // print('ByteRangeStream transferred:$transferred');

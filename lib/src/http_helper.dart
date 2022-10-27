@@ -14,7 +14,7 @@ class ProxyRequest {
   late Stream<Uint8List> _body;
   final HttpRequest httpRequest;
 
-  ProxyRequest.fromHttpRequest(HttpRequest httpRequest) : httpRequest = httpRequest {
+  ProxyRequest.fromHttpRequest(this.httpRequest) {
     Map<String, List<String>> headers = {};
     httpRequest.headers.forEach((k, v) {
       headers[k] = v;

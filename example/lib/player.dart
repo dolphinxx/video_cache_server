@@ -1,8 +1,9 @@
 import 'dart:io';
+import 'dart:developer' show log;
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fijkplayer/fijkplayer.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_cache_server/video_cache_server.dart';
 import 'package:video_cache_server_example/cache_preview.dart';
@@ -22,8 +23,8 @@ class PlayerWidget extends StatefulWidget {
 
 class PlayerWidgetState extends State<PlayerWidget> {
   String playerType = PLAYER_FIJKPLAYER;
-  final VideoCacheServer server = VideoCacheServer(httpClient: HttpClient());
-  String proxyUrl;
+  VideoCacheServer? server;
+  String? proxyUrl;
 
   PlayerWidgetState();
 
@@ -41,30 +42,36 @@ class PlayerWidgetState extends State<PlayerWidget> {
   @override
   void initState() {
     super.initState();
-    server.start().then((_) {
-      proxyUrl = _.getProxyUrl(widget.url);
-      if (mounted) {
-        setState(() {});
-      }
+    getTemporaryDirectory().then((tmpDir) {
+      server = VideoCacheServer(httpClient: HttpClient(), cacheDir: '${tmpDir.path}/video_cache_server/')
+        ..start().then((_) {
+          proxyUrl = _.getProxyUrl(widget.url);
+          if (mounted) {
+            setState(() {});
+          }
+        });
     });
   }
 
   @override
   void dispose() {
     super.dispose();
-    server.stop();
-    server.clear();
+    server?.stop();
+    server?.clear();
   }
 
   @override
   Widget build(BuildContext context) {
+    if(server == null) {
+      return CircularProgressIndicator();
+    }
     return Scaffold(
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AspectRatio(
             aspectRatio: 16 / 9,
-            child: server.started ? (playerType == PLAYER_FIJKPLAYER ? FijkPlayerWidget(proxyUrl) : VideoPlayerWidget(proxyUrl)) : Container(),
+            child: server!.started ? (playerType == PLAYER_FIJKPLAYER ? FijkPlayerWidget(proxyUrl!) : VideoPlayerWidget(proxyUrl!)) : Container(),
           ),
           Padding(
             padding: EdgeInsets.symmetric(vertical: 6.0),
@@ -104,7 +111,7 @@ class PlayerWidgetState extends State<PlayerWidget> {
               ],
             ),
           ),
-          CachePreview(widget.url, server, 40),
+          CachePreview(widget.url, server!, 40),
         ],
       ),
     );
@@ -129,7 +136,7 @@ class FijkPlayerWidgetState extends State<FijkPlayerWidget> {
     FijkLog.setLevel(FijkLogLevel.Error);
     _fijkPlayer.addListener(() {
       if (_fijkPlayer.value.state == FijkState.error) {
-        print('Error:${_fijkPlayer.value.exception}');
+        log('Error:${_fijkPlayer.value.exception}');
       }
     });
     _fijkPlayer.setDataSource(widget.url, autoPlay: true);
@@ -160,7 +167,7 @@ class VideoPlayerWidget extends StatefulWidget {
 }
 
 class VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  VideoPlayerController _controller;
+  VideoPlayerController? _controller;
 
   @override
   void initState() {
@@ -181,6 +188,9 @@ class VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.initialized == true ? VideoPlayer(_controller) : Container();
+    if(_controller == null || !_controller!.value.isInitialized) {
+      return const SizedBox();
+    }
+    return VideoPlayer(_controller!);
   }
 }

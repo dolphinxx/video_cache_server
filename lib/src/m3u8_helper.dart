@@ -1,11 +1,11 @@
 // Copyright (c) 2020, dolphinxx <bravedolphinxx@gmail.com>. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-const String MIME_TYPE_M3U8_1 = 'x-mpegurl';
-const String MIME_TYPE_M3U8_2 = 'vnd.apple.mpegurl';
+const String mimeTypeM3u8X = 'x-mpegurl';
+const String mimeTypeM3u8VndApple = 'vnd.apple.mpegurl';
 
 bool isM3u8MimeType(String? mimeType) {
-  return mimeType?.contains(MIME_TYPE_M3U8_1) == true || mimeType?.contains(MIME_TYPE_M3U8_2) == true;
+  return mimeType?.contains(mimeTypeM3u8X) == true || mimeType?.contains(mimeTypeM3u8VndApple) == true;
 }
 
 final RegExp _tagURIRegex = RegExp('URI="([^"]+)"');

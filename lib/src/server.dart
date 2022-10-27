@@ -4,9 +4,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:developer' show log;
 
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 
 import './cache.dart';
 import './exception.dart';
@@ -68,7 +68,7 @@ class VideoCacheServer {
   /// The port number the cache server is listening on, return null if the server is not started.
   int? get port => _server?.port;
 
-  String? _cacheDir;
+  final String _cacheDir;
 
   final BadCertificateCallback? badCertificateCallback;
 
@@ -130,7 +130,7 @@ class VideoCacheServer {
   VideoCacheServer({
     String? address,
     int? port,
-    String? cacheDir,
+    required String cacheDir,
     HttpClient? httpClient,
     this.lazy = true,
     this.securityContext,
@@ -146,11 +146,11 @@ class VideoCacheServer {
 
   /// Starts the cache server and returns the [VideoCacheServer] instance.
   Future<VideoCacheServer> start() async {
-    _cacheDir ??= '${(await getTemporaryDirectory()).path}/video_cache_server/';
-    if (!_cacheDir!.endsWith('/')) {
-      _cacheDir = _cacheDir! + '/';
-    }
-    Directory cacheDirectory = Directory(_cacheDir!);
+    // _cacheDir ??= '${(await getTemporaryDirectory()).path}/video_cache_server/';
+    // if (!_cacheDir!.endsWith('/')) {
+    //   _cacheDir = _cacheDir! + '/';
+    // }
+    Directory cacheDirectory = Directory(_cacheDir);
     if (cacheDirectory.existsSync() && cacheDirectory.statSync().type != FileSystemEntityType.directory) {
       throw AsyncError('The location which the cacheDir[$_cacheDir] indicates to is not a type of directory!', StackTrace.current);
     }
@@ -159,7 +159,7 @@ class VideoCacheServer {
     _port = _server!.port;
     _started = true;
     if (quiet != true) {
-      print('Video Cache Server serving at http${securityContext == null ? "" : "s"}://${_server!.address.host}:${_server!.port}');
+      log('Video Cache Server serving at http${securityContext == null ? "" : "s"}://${_server!.address.host}:${_server!.port}');
     }
     return this;
   }
@@ -169,7 +169,7 @@ class VideoCacheServer {
     try {
       _server?.close(force: true);
     } catch (e, s) {
-      print('failed to close cache proxy HttpServer.\n$e\n$s');
+      log('failed to close cache proxy HttpServer.\n$e\n$s');
     }
     _started = false;
   }
@@ -178,15 +178,13 @@ class VideoCacheServer {
   Future<void> clear() async {
     _caches.clear();
     cacheFileIndex = 0;
-    if (_cacheDir != null) {
-      Directory cacheDir = Directory(_cacheDir!);
-      if (cacheDir.existsSync()) {
-        for (FileSystemEntity file in cacheDir.listSync()) {
-          try {
-            file.deleteSync(recursive: true);
-          } catch (e) {
-            print(e);
-          }
+    Directory cacheDir = Directory(_cacheDir);
+    if (cacheDir.existsSync()) {
+      for (FileSystemEntity file in cacheDir.listSync()) {
+        try {
+          file.deleteSync(recursive: true);
+        } catch (e, s) {
+          log('failed to delete cache dir', error: e, stackTrace: s);
         }
       }
     }
@@ -202,19 +200,19 @@ class VideoCacheServer {
     _client ??= IOClient((_httpClient ?? HttpClient())
       ..autoUncompress = false
       ..badCertificateCallback = badCertificateCallback ?? (X509Certificate cert, String host, int port) => true);
-    var onError = (e, s) {
-      print('Proxy Server stopped with asynchronous error\n$e\n$s');
+    onError(e, s) {
+      log('Proxy Server stopped with asynchronous error\n$e\n$s');
       try {
         _client!.close();
       } catch (_) {}
-    };
-    var callback = () {
+    }
+    callback() {
       server.listen((HttpRequest request) => handleRequest(request), onDone: () {
         try {
           _client!.close();
         } catch (_) {}
       }, onError: onError);
-    };
+    }
     if (Zone.current.inSameErrorZone(Zone.root)) {
       runZonedGuarded(callback, onError);
     } else {
@@ -229,7 +227,7 @@ class VideoCacheServer {
     try {
       await _proxyAndCache(shelfRequest, request.response);
     } catch (error, stackTrace) {
-      print('Error occurred while handling request by proxy server.\n$error\n$stackTrace');
+      log('Error occurred while handling request by proxy server.\n$error\n$stackTrace');
       HttpResponse httpResponse = request.response;
       try {
         httpResponse.statusCode = 500;
@@ -243,11 +241,12 @@ class VideoCacheServer {
   ///
   /// [extraQueries] will be appended to the generated url, note that query key starts and ends with `__` is preserved to carry metadata and will not be appended to the actual video url.
   String getProxyUrl(String raw, [Map<String, String>? extraQueries]) {
-    String? _extraQueries;
+    String? extraQueriesStr;
     if (extraQueries?.isNotEmpty == true) {
-      _extraQueries = '&' + extraQueries!.keys.map((key) => '$key=${Uri.encodeComponent(extraQueries[key]!)}').join('&');
+      String queryString = extraQueries!.keys.map((key) => '$key=${Uri.encodeComponent(extraQueries[key]!)}').join('&');
+      extraQueriesStr = '&$queryString';
     }
-    return 'http${securityContext == null ? "" : "s"}://${address!.host}:$port/?__url__=${Uri.encodeComponent(raw)}${_extraQueries ?? ""}';
+    return 'http${securityContext == null ? "" : "s"}://${address!.host}:$port/?__url__=${Uri.encodeComponent(raw)}${extraQueriesStr ?? ""}';
   }
 
   /// Pass through the request for fetching mp4 metadata, this is usually happened when the player detected that the metadata is at the end of the mp4 file.
@@ -258,7 +257,7 @@ class VideoCacheServer {
         (requestRange.end != null || cacheInfo.total != null) &&
         requestRange.begin != null &&
         ((requestRange.end ?? cacheInfo.total!) - requestRange.begin! < 1024 && !cacheInfo.cached(requestRange))) {
-      print('request passed through');
+      log('request passed through');
       return true;
     }
     return false;
@@ -268,18 +267,18 @@ class VideoCacheServer {
   static Future<bool> handleM3u8(Uri uri, IOStreamedResponse remoteResponse, HttpResponse response, VideoCacheServer server, String? owner) async {
     if (isM3u8(remoteResponse.headers['content-type']?.toLowerCase(), uri)) {
       // For a m3u8 request, download and change the URIs in it to proxied version
-      String m3u8;
+      String m3u8Content;
       if (remoteResponse.headers['content-encoding'] == 'gzip') {
         response.headers.remove('content-encoding', 'gzip');
-        m3u8 = await http.ByteStream(remoteResponse.stream.cast<List<int>>().transform(gzip.decoder)).bytesToString();
+        m3u8Content = await http.ByteStream(remoteResponse.stream.cast<List<int>>().transform(gzip.decoder)).bytesToString();
       } else {
-        m3u8 = await remoteResponse.stream.bytesToString();
+        m3u8Content = await remoteResponse.stream.bytesToString();
       }
       Map<String, String>? ownerQuery = owner == null ? null : {'__owner__': owner};
-      M3u8 _m3u8 = proxyM3u8Content(m3u8, (url) => server.getProxyUrl(url, ownerQuery), remoteResponse.requestUri);
+      M3u8 m3u8 = proxyM3u8Content(m3u8Content, (url) => server.getProxyUrl(url, ownerQuery), remoteResponse.requestUri);
 
-      // print('-- M3U8:\n${_m3u8.proxied}');
-      List<int> bytes = utf8.encode(_m3u8.proxied!);
+      // print('-- M3U8:\n${m3u8.proxied}');
+      List<int> bytes = utf8.encode(m3u8.proxied!);
       response.contentLength = bytes.length;
       if (remoteResponse.statusCode == 206) {
         response.headers.set('content-range', 'bytes 0-${bytes.length - 1}/${bytes.length}');
@@ -330,7 +329,7 @@ class VideoCacheServer {
 
     RequestRange requestRange = RequestRange.parse(serverRequest.headers['range']);
     if (quiet != true) {
-      print('VideoCacheServer handling [begin:${requestRange.begin ?? 0}, end:${requestRange.end ?? ""}, url:$realUrl]');
+      log('VideoCacheServer handling [begin:${requestRange.begin ?? 0}, end:${requestRange.end ?? ""}, url:$realUrl]');
     }
 
     if (cacheInfo != null && (cacheInfo.cached(requestRange))) {
@@ -340,7 +339,7 @@ class VideoCacheServer {
           try {
             response.headers.set(key, value);
           } catch (e, s) {
-            print('copy header failed.\n$e\n$s');
+            log('copy header failed.\n$e\n$s');
           }
         });
       }
@@ -381,11 +380,11 @@ class VideoCacheServer {
         if (e is HttpException && e.message.contains('Content size below specified contentLength. ')) {
           return;
         }
-        print('failed to close response.$e\n$s');
+        log('failed to close response.$e\n$s');
         throw AsyncError(e, s);
       }
       if (quiet != true) {
-        print('Request finished from cache - [${requestRange.begin ?? 0}-${requestRange.end}, url:$realUrl]');
+        log('Request finished from cache - [${requestRange.begin ?? 0}-${requestRange.end}, url:$realUrl]');
       }
       return;
     }
@@ -423,7 +422,7 @@ class VideoCacheServer {
         try {
           response.headers.set(key, value);
         } catch (e, s) {
-          print('copy header failed.\n$e\n$s');
+          log('copy header failed.\n$e\n$s');
         }
         // print('Header:$key=$value');
       });
@@ -438,7 +437,7 @@ class VideoCacheServer {
           try {
             response.headers.set(key, value);
           } catch (e, s) {
-            print('copy header failed.\n$e\n$s');
+            log('copy header failed.\n$e\n$s');
           }
         });
         await response.addStream(clientResponse.stream);
@@ -477,7 +476,7 @@ class VideoCacheServer {
       ));
       await response.flush();
       if (quiet != true) {
-        print('Request finished - [${requestRange.begin ?? 0}-${requestRange.end}, url:$realUrl]');
+        log('Request finished - [${requestRange.begin ?? 0}-${requestRange.end}, url:$realUrl]');
       }
       try {
         await response.close();
@@ -486,12 +485,12 @@ class VideoCacheServer {
           // print('Warn:[${requestRange.begin??0}-${requestRange.end??""}]Content size below specified contentLength.');
           return;
         }
-        print('failed to close response.$e\n$s');
+        log('failed to close response.$e\n$s');
         // throw AsyncError(e, s);
       }
     } catch (e, s) {
       if (e is! InterruptedError) {
-        print('error occurred while proxying $realUrl.$e\n$s');
+        log('error occurred while proxying $realUrl.$e\n$s');
       }
       if (clientResponse == null) {
         // remote request failed, write the error to response
@@ -520,7 +519,7 @@ class VideoCacheServer {
       try {
         response.headers.set(key, value);
       } catch (e, s) {
-        print('copy header failed.\n$e\n$s');
+        log('copy header failed.\n$e\n$s');
       }
     });
     await response.addStream(clientResponse.stream);

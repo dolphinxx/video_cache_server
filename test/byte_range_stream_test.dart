@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:developer' show log;
 
 import 'package:video_cache_server/src/byte_range_stream.dart';
 
@@ -28,15 +29,15 @@ void main() {
     stream.listen((element) {
       receivedCount += element.length;
       received.addAll(element);
-      print('block:${element.length}');
+      log('block:${element.length}');
     }, onError: (e, s) {
-      print('Error\n$e\n$s');
+      log('Error\n$e\n$s');
     }, onDone: () {
-      print('Done!');
+      log('Done!');
       completer.complete();
     });
     await completer.future;
-    print('received:$receivedCount');
+    log('received:$receivedCount');
     expect(receivedCount, 10);
     expect(received, [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
   });
@@ -50,15 +51,15 @@ void main() {
     stream.listen((element) {
       receivedCount += element.length;
       received.addAll(element);
-      print('block:${element.length}');
+      log('block:${element.length}');
     }, onError: (e, s) {
-      print('Error\n$e\n$s');
+      log('Error\n$e\n$s');
     }, onDone: () {
-      print('Done!');
+      log('Done!');
       completer.complete();
     });
     await completer.future;
-    print('received:$receivedCount');
+    log('received:$receivedCount');
     expect(receivedCount, 15);
     expect(received, List.generate(15, (index) => index));
   });
@@ -75,15 +76,15 @@ void main() {
     stream.listen((element) {
       receivedCount += element.length;
       received.addAll(element);
-      print('block:${element.length}');
+      log('block:${element.length}');
     }, onError: (e, s) {
-      print('Error\n$e\n$s');
+      log('Error\n$e\n$s');
     }, onDone: () {
-      print('Done!');
+      log('Done!');
       completer.complete();
     });
     await completer.future;
-    print('received:$receivedCount');
+    log('received:$receivedCount');
     List<int> expected = data.fold([], (previousValue, element) => previousValue..addAll(element));
     expect(receivedCount, expected.length);
     expect(received, expected);
@@ -101,15 +102,15 @@ void main() {
     stream.listen((element) {
       receivedCount += element.length;
       received.addAll(element);
-      print('block:${element.length}');
+      log('block:${element.length}');
     }, onError: (e, s) {
-      print('Error\n$e\n$s');
+      log('Error\n$e\n$s');
     }, onDone: () {
-      print('Done!');
+      log('Done!');
       completer.complete();
     });
     await completer.future;
-    print('received:$receivedCount');
+    log('received:$receivedCount');
     List<int> expected = data.fold<List<int>>(<int>[], (previousValue, element) => previousValue..addAll(element)).sublist(4);
     expect(receivedCount, expected.length);
     expect(received, expected);
@@ -124,15 +125,15 @@ void main() {
     stream.listen((element) {
       receivedCount += element.length;
       received.addAll(element);
-      print('block:${element.length}');
+      log('block:${element.length}');
     }, onError: (e, s) {
-      print('Error\n$e\n$s');
+      log('Error\n$e\n$s');
     }, onDone: () {
-      print('Done!');
+      log('Done!');
       completer.complete();
     });
     await completer.future;
-    print('received:$receivedCount');
+    log('received:$receivedCount');
     List<int> expected = data.fold<List<int>>(<int>[], (previousValue, element) => previousValue..addAll(element)).sublist(4);
     expect(receivedCount, expected.length);
     expect(received, expected);
@@ -147,15 +148,15 @@ void main() {
     stream.listen((element) {
       receivedCount += element.length;
       received.addAll(element);
-      print('block:${element.length}');
+      log('block:${element.length}');
     }, onError: (e, s) {
-      print('Error\n$e\n$s');
+      log('Error\n$e\n$s');
     }, onDone: () {
-      print('Done!');
+      log('Done!');
       completer.complete();
     });
     await completer.future;
-    print('received:$receivedCount');
+    log('received:$receivedCount');
     List<int> expected = data.fold<List<int>>(<int>[], (previousValue, element) => previousValue..addAll(element));
     expect(receivedCount, expected.length);
     expect(received, expected);
@@ -166,9 +167,9 @@ void main() {
     stream = ByteRangeStream.range(stream, begin: 1024, end: 1024000);
     await stream.forEach((element) {
       received += element.length;
-      print('block:${element.length}');
+      log('block:${element.length}');
     });
-    print('received:$received');
+    log('received:$received');
     expect(received, 1024000 - 1024);
   });
 }
